@@ -1,8 +1,8 @@
 #include <stdio.h>
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
-#include "kNN-CUDA/code/knncuda.h"
-
+#include "knncuda.h"
+#include <chrono>
 
 // error checking macro
 #define cudaCheckErrors(msg) \
@@ -20,26 +20,36 @@
 
 
 
-__global__ void initRandStates(curandState* states, unsigned int seed){
+
+
+__global__ void generatePoses(float *poses, unsigned long seed, int numPoses, int dim){
+    
+    extern __shared__ curandState sharedStates[];
     int idx = threadIdx.x + blockIdx.x*blockDim.x;
-    curand_init(seed, idx, 0, &states[idx]);
-}
-
-__global__ void generatePoses(float *poses, curandState *states, int numPoses, int dim){
-    int idx = threadIdx.x + blockIdx.x*blockDim.x;
-    if (idx < numPoses){
-        curandState localState = states[idx];
-
-        for (int d = 0; d < dim; d++){
-            poses[idx * dim + d] = curand_uniform(&localState);
-        }
-
-        states[idx] = localState;
+    int tid = threadIdx.x;
+    
+    // If it is first thread in block, initialize curand state
+    if (tid == 0){
+        curand_init(seed, blockIdx.x, 0, &sharedStates[0]);
     }
+    __syncthreads(); // Ensure all threads finish initializing curand state
+
+    if(idx < numPoses){
+        for (int d = 0; d < dim; d++){
+            // Skip ahead based on thread ID to maintain randomness
+            for (int j = 0; j < tid; j++){
+                curand_uniform(&sharedStates[0]);
+            }
+            poses[idx * dim + d] = curand_uniform(&sharedStates[0]);
+            __syncthreads(); // Ensure all threads finish using the state before next iteration
+        }
+    }
+
+    
 }
 
 void displayPoses(float *poses, int numPoses, int dim){
-    for (int i = 0; i < 20; i++){
+    for (int i = 0; i < numPoses; i++){
         printf("Pose %d: ", i);
         for (int j = 0; j < dim; j++){
             printf("%f ", poses[i*dim + j]);
@@ -51,72 +61,125 @@ void displayPoses(float *poses, int numPoses, int dim){
 
 int main(){
     // Number of poses to generate and their dimension
+    auto st = std::chrono::high_resolution_clock::now();
+
+    auto sx = std::chrono::high_resolution_clock::now();
+   
     int numPoses = 10000; 
-    int dim = 7; // x, y, z, qx, qy, qz, qw
-
-    // Allocate host and device memory for vectors of poses
-    // Poses are stored as one sequences are stored in row-major order (pose 0, pose 1, ..., pose N)
-    float *h_poses, *d_poses;
-    h_poses = new float[numPoses*dim];
-    cudaMalloc(&d_poses, numPoses*dim*sizeof(float));
-    cudaCheckErrors("cudaMalloc failure"); 
-
-    // Allocate device memory for the random number generators (curandStates) that we need
-    // to generate the poses in parallel
-    curandState *d_states;
-    cudaMalloc(&d_states, numPoses*sizeof(curandState));
-    cudaCheckErrors("cudaMalloc failure"); 
-
-    ///int blocks = 320;
-    int blocksize = 256;
+    int dim = 6; // x, y, z, qx, qy, qz, qw
+    cudaDeviceProp deviceProp;
+    cudaGetDeviceProperties(&deviceProp, 0); // dev_ID = 0
+    int maxThreadsPerBlock = deviceProp.maxThreadsPerBlock;
+    int multiProcessorCount = deviceProp.multiProcessorCount;
+    int blocksize = 256; //can increase depending on gpu
     int gridsize = (numPoses + blocksize - 1)/blocksize;
+    auto ex = std::chrono::high_resolution_clock::now();
 
-    unsigned int seed = 123;
-    initRandStates<<<gridsize, blocksize>>>(d_states, seed);
-    cudaCheckErrors("kernel launch failure");
+    std::chrono::duration<double> elapsedx = ex - sx;
+    printf("Device properties time: %f seconds\n", elapsedx.count());
 
-    generatePoses<<<gridsize, blocksize>>>(d_poses, d_states, numPoses, dim);
+    auto start = std::chrono::high_resolution_clock::now();
+
+    // Pin host memory for faster memory transfers
+    float *h_poses, *d_poses;
+    cudaMallocHost(&h_poses, numPoses * dim * sizeof(float));
+    auto se = std::chrono::high_resolution_clock::now();
+    cudaCheckErrors("cudaMalloc failure"); 
+    auto fe = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsede = fe - se;
+    printf("Error check time: %f seconds\n", elapsede.count());
+    // Poses are stored as one sequence in row-major order 
+    cudaMalloc(&d_poses, numPoses * dim * sizeof(float));
+    cudaCheckErrors("cudaMalloc failure"); 
+    auto end = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed = end - start;
+    printf("Malloc time: %f seconds\n", elapsed.count());
+    unsigned long seed = 12345UL;
+
+    // Using one curandState per block, store it in shared memory
+    int sharedMemSize = sizeof(curandState);
+
+    auto start1 = std::chrono::high_resolution_clock::now();
+    generatePoses<<<gridsize, blocksize, sharedMemSize>>>(d_poses, seed, numPoses, dim);
+    auto end1 = std::chrono::high_resolution_clock::now();
     cudaCheckErrors("kernel launch failure");
-/*
+    std::chrono::duration<double> elapsed1 = end1 - start1;
+    printf("PoseGen kernel time: %f seconds\n", elapsed1.count());
+
+    auto start2 = std::chrono::high_resolution_clock::now();
+    cudaMemcpyAsync(h_poses, d_poses, numPoses * dim * sizeof(float), cudaMemcpyDeviceToHost);
+    auto end2 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed2 = end2 - start2;
+    printf("Memcpy time: %f seconds\n", elapsed2.count());
+
+    cudaCheckErrors("cudaMemcpyAsync failure");
+
+    // Display first 20 poses
+    //displayPoses(h_poses, numPoses, dim);
+    auto start3 = std::chrono::high_resolution_clock::now();
+    cudaFreeHost(h_poses);
+    cudaFree(d_poses);
+    auto end3 = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsed3 = end3 - start3;
+    printf("Free time: %f seconds\n", elapsed3.count());
+
+    auto et = std::chrono::high_resolution_clock::now();
+    std::chrono::duration<double> elapsedt = et - st;
+    printf("Total time: %f seconds\n", elapsedt.count());
+
+    /*
     // Perform kNN search on pose list
     int k = 10; 
-    
-    // Allocate host memory for indices and distances of nearest neighbors
+    // Allocate pinned host memory for indices and distances of nearest neighbors
     int* h_indices;
-    h_indices = new int[numPoses*k]; 
     float* h_distances;
-    h_distances = new float[numPoses*k];
+    cudaMallocHost(&h_indices, numPoses * k * sizeof(int));
+    cudaCheckErrors("cudaMallocHost failure");
+    cudaMallocHost(&h_distances, numPoses * k * sizeof(float));
+    cudaCheckErrors("cudaMallocHost failure");
 
     // Allocate device memory for indices and lengths of and to nearest neighbors
     int* d_indices;
-    cudaMalloc(&d_indices, numPoses*k*sizeof(int));
     float* d_distances;
-    cudaMalloc(&d_distances, numPoses*k*sizeof(float)); // Allocate memory for distances to nearest neighbors
+    cudaMalloc(&d_indices, numPoses * k * sizeof(int));
+    cudaCheckErrors("cudaMalloc failure");
+    cudaMalloc(&d_distances, numPoses * k * sizeof(float)); 
+    cudaCheckErrors("cudaMalloc failure");
 
-    // Copy poses to constant memory for use with knn_cublas
-    const float *d_poses_const;
-    cudaMalloc((void**)&d_poses_const, numPoses*dim*sizeof(float));
-    cudaMemcpy((void*)d_poses_const, d_poses, numPoses*dim*sizeof(float), cudaMemcpyDeviceToDevice);
-    cudaCheckErrors("cudaMemcpy D2D failure");
 
-    // Perform kNN search
-   // bool nn_success = knn_cublas(d_poses_const, numPoses, d_poses_const, numPoses, dim, k, d_distances, d_indices);
+    // Perform kNN search on the poses
+    bool nn_success = knn_cublas(h_poses, numPoses, h_poses, numPoses, dim, k, h_distances, h_indices);
 
-    cudaMemcpy(h_indices, d_indices, numPoses*k*sizeof(int), cudaMemcpyDeviceToHost);
-    cudaMemcpy(h_distances, d_distances, numPoses*k*sizeof(float), cudaMemcpyDeviceToHost);
+    if (!nn_success){
+        printf("kNN search failed\n");
+    } else {
+        printf("kNN search succeeded\n");
+    }
+    printf("Distance to nearest neighbors for first 20 poses:\n");
+    for (int i = 0; i < 20; i++){
+        printf("Pose %d: ", i);
+        for (int j = 0; j < k; j++){
+            printf("%f ", h_distances[i*k + j]);
+        }
+        printf("\n");
+    }
+    printf("Nearest neighbors for first 20 poses:\n");
+    for (int i = 0; i < 20; i++){
+        printf("Pose %d: ", i);
+        for (int j = 0; j < k; j++){
+            printf("%d ", h_indices[i*k + j]);
+        }
+        printf("\n");
+    }
 
+    // Use cudaFreeHost for pinned memory
+    cudaFreeHost(h_indices);
+    cudaFreeHost(h_distances);
+    cudaFree(d_indices);
+    cudaFree(d_distances);
     */
-    cudaMemcpy(h_poses, d_poses, numPoses*dim*sizeof(float), cudaMemcpyDeviceToHost);
-    //displayPoses(h_poses, numPoses, dim);
-
-    delete[] h_poses;
-  //  delete[] h_indices;
-  //  delete[] h_distances;
-    cudaFree(d_poses);
-    cudaFree(d_states);
- //   cudaFree(d_indices);
-  //  cudaFree(d_distances);
-
-
+    
+    
+    
     return 0;
 }
