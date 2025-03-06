@@ -13,7 +13,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_gripper.STL"/>
+        <mesh filename="meshes/link_gripper.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.1 0.1 0.1 1"/>
@@ -22,7 +22,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_gripper.STL"/>
+        <mesh filename="meshes/link_gripper.STL"/>
       </geometry>
     </collision>
   </link>
@@ -43,7 +43,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_gripper_finger_left.STL" scale="0.9 1.0 1.0"/>
+        <mesh filename="meshes/link_gripper_finger_left.STL" scale="0.9 1.0 1.0"/>
       </geometry>
       <material name="">
         <color rgba="0.5 0.5 0.5 1"/>
@@ -52,7 +52,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_gripper_finger_left.STL" scale="0.9 1.0 1.0"/>
+        <mesh filename="meshes/link_gripper_finger_left.STL" scale="0.9 1.0 1.0"/>
       </geometry>
     </collision>
   </link>
@@ -72,7 +72,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_gripper_fingertip_left.STL"/>
+        <mesh filename="meshes/link_gripper_fingertip_left.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.01 0.01 0.01 1"/>
@@ -81,7 +81,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_gripper_fingertip_left.STL"/>
+        <mesh filename="meshes/link_gripper_fingertip_left.STL"/>
       </geometry>
     </collision>
   </link>
@@ -100,7 +100,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_gripper_finger_right.STL" scale="0.9 1.0 1.0"/>
+        <mesh filename="meshes/link_gripper_finger_right.STL" scale="0.9 1.0 1.0"/>
       </geometry>
       <material name="">
         <color rgba="0.5 0.5 0.5 1"/>
@@ -109,7 +109,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_gripper_finger_right.STL" scale="0.9 1.0 1.0"/>
+        <mesh filename="meshes/link_gripper_finger_right.STL" scale="0.9 1.0 1.0"/>
       </geometry>
     </collision>
   </link>
@@ -129,7 +129,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_gripper_fingertip_right.STL"/>
+        <mesh filename="meshes/link_gripper_fingertip_right.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.01 0.01 0.01 1"/>
@@ -138,7 +138,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_gripper_fingertip_right.STL"/>
+        <mesh filename="meshes/link_gripper_fingertip_right.STL"/>
       </geometry>
     </collision>
   </link>
@@ -166,7 +166,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/base_link.STL"/>
+        <mesh filename="meshes/base_link.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.3 0.3 0.35 1"/>
@@ -175,7 +175,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/base_link.STL"/>
+        <mesh filename="meshes/base_link.STL"/>
       </geometry>
     </collision>
   </link>
@@ -188,7 +188,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_right_wheel.STL"/>
+        <mesh filename="meshes/link_right_wheel.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.1 0.1 0.1 1"/>
@@ -197,7 +197,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_right_wheel.STL"/>
+        <mesh filename="meshes/link_right_wheel.STL"/>
       </geometry>
     </collision>
   </link>
@@ -217,7 +217,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_left_wheel.STL"/>
+        <mesh filename="meshes/link_left_wheel.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.1 0.1 0.1 1"/>
@@ -226,7 +226,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_left_wheel.STL"/>
+        <mesh filename="meshes/link_left_wheel.STL"/>
       </geometry>
     </collision>
   </link>
@@ -257,7 +257,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/omni_wheel_m.STL"/>
+        <mesh filename="meshes/omni_wheel_m.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
@@ -284,7 +284,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_mast.STL"/>
+        <mesh filename="meshes/link_mast.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.02 0.02 0.02 1"/>
@@ -293,7 +293,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_mast.STL"/>
+        <mesh filename="meshes/link_mast.STL"/>
       </geometry>
     </collision>
   </link>
@@ -312,7 +312,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_lift.STL"/>
+        <mesh filename="meshes/link_lift.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.02 0.02 0.02 1"/>
@@ -321,7 +321,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_lift.STL"/>
+        <mesh filename="meshes/link_lift.STL"/>
       </geometry>
     </collision>
   </link>
@@ -344,7 +344,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_arm_l4.STL"/>
+        <mesh filename="meshes/link_arm_l4.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.01 0.01 0.01 1"/>
@@ -353,7 +353,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_arm_l4.STL"/>
+        <mesh filename="meshes/link_arm_l4.STL"/>
       </geometry>
     </collision>
   </link>
@@ -372,7 +372,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_arm_l3.STL"/>
+        <mesh filename="meshes/link_arm_l3.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.01 0.01 0.01 1"/>
@@ -381,7 +381,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_arm_l3.STL"/>
+        <mesh filename="meshes/link_arm_l3.STL"/>
       </geometry>
     </collision>
   </link>
@@ -402,7 +402,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_arm_l2.STL"/>
+        <mesh filename="meshes/link_arm_l2.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.01 0.01 0.01 1"/>
@@ -411,7 +411,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_arm_l2.STL"/>
+        <mesh filename="meshes/link_arm_l2.STL"/>
       </geometry>
     </collision>
   </link>
@@ -432,7 +432,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_arm_l1.STL"/>
+        <mesh filename="meshes/link_arm_l1.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.01 0.01 0.01 1"/>
@@ -441,7 +441,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_arm_l1.STL"/>
+        <mesh filename="meshes/link_arm_l1.STL"/>
       </geometry>
     </collision>
   </link>
@@ -462,7 +462,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_arm_l0.STL"/>
+        <mesh filename="meshes/link_arm_l0.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.01 0.01 0.01 1"/>
@@ -471,7 +471,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_arm_l0.STL"/>
+        <mesh filename="meshes/link_arm_l0.STL"/>
       </geometry>
     </collision>
   </link>
@@ -492,7 +492,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_wrist_yaw.STL"/>
+        <mesh filename="meshes/link_wrist_yaw.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.01 0.01 0.01 1"/>
@@ -501,7 +501,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_wrist_yaw.STL"/>
+        <mesh filename="meshes/link_wrist_yaw.STL"/>
       </geometry>
     </collision>
   </link>
@@ -527,7 +527,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_head.STL"/>
+        <mesh filename="meshes/link_head.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.02 0.02 0.02 1"/>
@@ -536,7 +536,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_head.STL"/>
+        <mesh filename="meshes/link_head.STL"/>
       </geometry>
     </collision>
   </link>
@@ -555,7 +555,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_head_pan.STL"/>
+        <mesh filename="meshes/link_head_pan.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.01 0.01 0.01 1"/>
@@ -564,7 +564,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_head_pan.STL"/>
+        <mesh filename="meshes/link_head_pan.STL"/>
       </geometry>
     </collision>
   </link>
@@ -585,7 +585,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_head_tilt.STL"/>
+        <mesh filename="meshes/link_head_tilt.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.1 0.1 0.1 1"/>
@@ -594,7 +594,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_head_tilt.STL"/>
+        <mesh filename="meshes/link_head_tilt.STL"/>
       </geometry>
     </collision>
   </link>
@@ -615,7 +615,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_aruco_right_base.STL"/>
+        <mesh filename="meshes/link_aruco_right_base.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.01 0.01 0.01 1"/>
@@ -624,7 +624,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_aruco_right_base.STL"/>
+        <mesh filename="meshes/link_aruco_right_base.STL"/>
       </geometry>
     </collision>
   </link>
@@ -643,7 +643,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_aruco_left_base.STL"/>
+        <mesh filename="meshes/link_aruco_left_base.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
@@ -652,7 +652,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_aruco_left_base.STL"/>
+        <mesh filename="meshes/link_aruco_left_base.STL"/>
       </geometry>
     </collision>
   </link>
@@ -671,7 +671,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_aruco_shoulder.STL"/>
+        <mesh filename="meshes/link_aruco_shoulder.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
@@ -680,7 +680,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_aruco_shoulder.STL"/>
+        <mesh filename="meshes/link_aruco_shoulder.STL"/>
       </geometry>
     </collision>
   </link>
@@ -699,7 +699,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_aruco_top_wrist.STL"/>
+        <mesh filename="meshes/link_aruco_top_wrist.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
@@ -708,7 +708,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_aruco_top_wrist.STL"/>
+        <mesh filename="meshes/link_aruco_top_wrist.STL"/>
       </geometry>
     </collision>
   </link>
@@ -727,7 +727,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_aruco_inner_wrist.STL"/>
+        <mesh filename="meshes/link_aruco_inner_wrist.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.792156862745098 0.819607843137255 0.933333333333333 1"/>
@@ -736,7 +736,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_aruco_inner_wrist.STL"/>
+        <mesh filename="meshes/link_aruco_inner_wrist.STL"/>
       </geometry>
     </collision>
   </link>
@@ -769,7 +769,7 @@
       <!-- the mesh origin is at front plate in between the two infrared camera axes -->
       <origin rpy="1.5707963267948966 0 1.5707963267948966" xyz="0.0043 -0.0175 0"/>
       <geometry>
-        <mesh filename="package://meshes/d435.dae"/>
+        <mesh filename="meshes/d435.dae"/>
       </geometry>
       <material name="">
         <color rgba="0.01 0.01 0.01 1"/>
@@ -879,7 +879,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/laser.STL"/>
+        <mesh filename="meshes/laser.STL"/>
       </geometry>
       <material name="">
         <color rgba="0.02 0.02 0.02 1"/>
@@ -888,7 +888,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/laser.STL"/>
+        <mesh filename="meshes/laser.STL"/>
       </geometry>
     </collision>
   </link>
@@ -907,7 +907,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/base_imu.STL"/>
+        <mesh filename="meshes/base_imu.STL"/>
       </geometry>
       <material name="">
         <color rgba="0 0.772549019607843 0.207843137254902 1"/>
@@ -916,7 +916,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/base_imu.STL"/>
+        <mesh filename="meshes/base_imu.STL"/>
       </geometry>
     </collision>
   </link>
@@ -935,7 +935,7 @@
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_respeaker.STL"/>
+        <mesh filename="meshes/link_respeaker.STL"/>
       </geometry>
       <material name="">
         <color rgba="0 0 0 1"/>
@@ -944,7 +944,7 @@
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-        <mesh filename="package://meshes/link_respeaker.STL"/>
+        <mesh filename="meshes/link_respeaker.STL"/>
       </geometry>
     </collision>
   </link>

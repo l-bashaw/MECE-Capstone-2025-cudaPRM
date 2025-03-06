@@ -1,0 +1,59 @@
+##
+## Copyright (c) 2023 NVIDIA CORPORATION & AFFILIATES. All rights reserved.
+##
+## NVIDIA CORPORATION, its affiliates and licensors retain all intellectual
+## property and proprietary rights in and to this material, related
+## documentation and any modifications thereto. Any use, reproduction,
+## disclosure or distribution of this material and related documentation
+## without an express license agreement from NVIDIA CORPORATION or
+## its affiliates is strictly prohibited.
+##
+
+robot_cfg:
+  kinematics:
+    usd_path: "/robot/stretch.usd"
+    usd_robot_root: "/robot"
+    isaac_usd_path: ""
+    usd_flip_joints: {}
+    usd_flip_joint_limits: []
+
+    urdf_path: "/robot/stretchIsaac.urdf"
+    asset_root_path: "/robot"
+    
+    base_link: "base_link"
+    ee_link: "gripper"
+    link_names: null
+    lock_joints: null
+    extra_links: null
+
+    
+    collision_link_names: null # List[str]
+    collision_spheres: null #
+    collision_sphere_buffer: 0.005 # float or Dict[str, float]
+    extra_collision_spheres: {}
+    self_collision_ignore: {} # Dict[str, List[str]]
+    self_collision_buffer: {} # Dict[str, float]
+
+    use_global_cumul: True
+    mesh_link_names: null # List[str]
+    external_asset_path: null # Use this to add path for externally located assets/robot folder.
+
+    cspace:
+      joint_names: ["joint_gripper_finger_left", 
+                    "joint_gripper_finger_right",
+                    "joint_right_wheel",
+                    "joint_left_wheel",
+                    "joint_lift",
+                    "joint_arm_l3",
+                    "joint_arm_l2",
+                    "joint_arm_l1",
+                    "joint_arm_l0",
+                    "joint_wrist_yaw",
+                    "joint_head_pan",
+                    "joint_head_tilt",
+                    ] # List[str]
+      retract_config: [0.3, 0.3, 0, 0, 0.2, 0, 0, 0, 0.0, 0, 0, 0] # List[float]
+      null_space_weight: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] # List[str]
+      cspace_distance_weight: [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1] # List[str]
+      max_jerk: 500.0
+      max_acceleration: 15.0
