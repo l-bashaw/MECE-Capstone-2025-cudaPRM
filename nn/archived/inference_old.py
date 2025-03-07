@@ -10,7 +10,8 @@ import onnx
 import subprocess
 from percscorenn import PercScoreProxyNet
 import os
-import common
+import torch2trt
+
 import numpy as np
 
 
