@@ -7,7 +7,7 @@ import warnings
 
 def build_pt_from_dict(model_path, label_size=3, to_cuda=True): 
     input_dim = torch.load(model_path)['layers.0.weight'].shape[1]
-    if input_dim - label_size != 7:
+    if (input_dim - label_size) != 7:
         raise ValueError("Provided label size does not match the model's input dimension\nModel input dim: {}\nLabel size: {}".format(input_dim, label_size)+"\nHINT: input_dim = 7 + label_size")
     else:
         if to_cuda:
@@ -43,13 +43,11 @@ def load_trt_engine(file_name):
     return model_trt
 
 
-
+'''
 model_state_path = "/home/lenman/capstone/parallelrm/models/percscore-nov12-50k.pt"
 batch_size = 100
-
 model_trt = build_trt_from_dict(model_state_path, batch_size=batch_size)
-
-
 x = torch.rand((batch_size, 7+3)).cuda()
 output = model_trt(x)
-print(output)
+print(output)'
+'''
