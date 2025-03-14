@@ -3,6 +3,9 @@
 #include <curand_kernel.h>
 #include "knncuda.h"
 #include <chrono>
+#include <iostream>
+#include <fstream>
+#include <vector>
 
 // error checking macro
 #define cudaCheckErrors(msg) \
@@ -17,7 +20,25 @@
         } \
     } while (0)
 
+// Takes a row major array of data and writes it to a CSV file
+void saveToCSV(const std::string& filename, float* data, int numPoses, int dim) {
+    std::ofstream file(filename);
+    if (!file.is_open()) {
+        std::cerr << "Error opening file: " << filename << std::endl;
+        return;
+    }
 
+    for (int i = 0; i < numPoses; i++) {
+        for (int j = 0; j < dim; j++) {
+            file << data[i * dim + j];
+            if (j < dim - 1) file << ",";  // Comma between values
+        }
+        file << "\n";  // Newline after each pose
+    }
+
+    file.close();
+    std::cout << "Data successfully written to " << filename << std::endl;
+}
 
 
 
@@ -32,13 +53,17 @@ __global__ void generatePoses(float *poses, unsigned long seed, int numPoses, in
     if (tid == 0){
         curand_init(seed, blockIdx.x, 0, &sharedStates[0]);
     }
+    
+    // Remove this line??????
     __syncthreads(); // Ensure all threads finish initializing curand state
+
 
     if(idx < numPoses){
         for (int d = 0; d < dim; d++){
             // Skip ahead based on thread ID to maintain randomness
             for (int j = 0; j < tid; j++){
                 curand_uniform(&sharedStates[0]);
+
             }
             poses[idx * dim + d] = curand_uniform(&sharedStates[0]);
             __syncthreads(); // Ensure all threads finish using the state before next iteration
@@ -61,71 +86,80 @@ void displayPoses(float *poses, int numPoses, int dim){
 
 int main(){
     // Number of poses to generate and their dimension
-    auto st = std::chrono::high_resolution_clock::now();
 
-    auto sx = std::chrono::high_resolution_clock::now();
    
-    int numPoses = 10000; 
-    int dim = 6; // x, y, z, qx, qy, qz, qw
+    int numPoses = 100000; 
+    int dim = 7; 
     cudaDeviceProp deviceProp;
     cudaGetDeviceProperties(&deviceProp, 0); // dev_ID = 0
     int maxThreadsPerBlock = deviceProp.maxThreadsPerBlock;
     int multiProcessorCount = deviceProp.multiProcessorCount;
     int blocksize = 256; //can increase depending on gpu
     int gridsize = (numPoses + blocksize - 1)/blocksize;
-    auto ex = std::chrono::high_resolution_clock::now();
 
-    std::chrono::duration<double> elapsedx = ex - sx;
-    printf("Device properties time: %f seconds\n", elapsedx.count());
-
-    auto start = std::chrono::high_resolution_clock::now();
+    bool time = true;
+    bool pose = false;
 
     // Pin host memory for faster memory transfers
     float *h_poses, *d_poses;
     cudaMallocHost(&h_poses, numPoses * dim * sizeof(float));
-    auto se = std::chrono::high_resolution_clock::now();
     cudaCheckErrors("cudaMalloc failure"); 
-    auto fe = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsede = fe - se;
-    printf("Error check time: %f seconds\n", elapsede.count());
+
     // Poses are stored as one sequence in row-major order 
     cudaMalloc(&d_poses, numPoses * dim * sizeof(float));
     cudaCheckErrors("cudaMalloc failure"); 
-    auto end = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed = end - start;
-    printf("Malloc time: %f seconds\n", elapsed.count());
     unsigned long seed = 12345UL;
 
     // Using one curandState per block, store it in shared memory
     int sharedMemSize = sizeof(curandState);
 
-    auto start1 = std::chrono::high_resolution_clock::now();
-    generatePoses<<<gridsize, blocksize, sharedMemSize>>>(d_poses, seed, numPoses, dim);
-    auto end1 = std::chrono::high_resolution_clock::now();
-    cudaCheckErrors("kernel launch failure");
-    std::chrono::duration<double> elapsed1 = end1 - start1;
-    printf("PoseGen kernel time: %f seconds\n", elapsed1.count());
+    if(time && pose || !time && !pose){
+        printf("Pick one bozo");
+        return 1;
+    }
 
-    auto start2 = std::chrono::high_resolution_clock::now();
-    cudaMemcpyAsync(h_poses, d_poses, numPoses * dim * sizeof(float), cudaMemcpyDeviceToHost);
-    auto end2 = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed2 = end2 - start2;
-    printf("Memcpy time: %f seconds\n", elapsed2.count());
+    if(time){
+        printf("Timing the kernel\n");
+        int num_iters = 10000;
+        float* times;
+        cudaMallocHost(&times, num_iters * sizeof(float));
 
-    cudaCheckErrors("cudaMemcpyAsync failure");
+        cudaEvent_t start, stop;
+        cudaEventCreate(&start);
+        cudaEventCreate(&stop);
 
-    // Display first 20 poses
-    //displayPoses(h_poses, numPoses, dim);
-    auto start3 = std::chrono::high_resolution_clock::now();
+        for (int i=0; i<num_iters; i++){
+
+            cudaEventRecord(start);
+            generatePoses<<<gridsize, blocksize, sharedMemSize>>>(d_poses, seed, numPoses, dim);
+            cudaCheckErrors("kernel launch failure");
+            cudaEventRecord(stop);
+            
+            cudaEventSynchronize(stop);
+            float ms = 0;
+            cudaEventElapsedTime(&ms, start, stop);
+            times[i] = ms;
+        }
+        
+        saveToCSV("times_7_100k_ms.csv", times, num_iters, 1);
+        cudaFreeHost(times);
+    }
+    if(pose){
+        printf("Generating 2D poses\n");
+        generatePoses<<<gridsize, blocksize, sharedMemSize>>>(d_poses, seed, numPoses, dim);
+        cudaCheckErrors("kernel launch failure");
+        cudaDeviceSynchronize();
+        cudaMemcpy(h_poses, d_poses, numPoses * dim * sizeof(float), cudaMemcpyDeviceToHost);
+        cudaCheckErrors("cudaMemcpy H2D failure");
+        saveToCSV("posesImproved.csv", h_poses, numPoses, dim);
+    }
+    
     cudaFreeHost(h_poses);
     cudaFree(d_poses);
-    auto end3 = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsed3 = end3 - start3;
-    printf("Free time: %f seconds\n", elapsed3.count());
+  
 
-    auto et = std::chrono::high_resolution_clock::now();
-    std::chrono::duration<double> elapsedt = et - st;
-    printf("Total time: %f seconds\n", elapsedt.count());
+    return 0;
+}
 
     /*
     // Perform kNN search on pose list
@@ -181,5 +215,3 @@ int main(){
     
     
     
-    return 0;
-}
