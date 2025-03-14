@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2024.9.17)  14 MAR 2025 17:01
+This is pdfTeX, Version 3.141592653-2.6-1.40.26 (TeX Live 2024) (preloaded format=pdflatex 2024.9.17)  14 MAR 2025 17:28
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -333,12 +333,6 @@ l.16
 ? r
 OK, entering \nonstopmode...
 
-Underfull \hbox (badness 2818) in paragraph at lines 26--28
-[]\OT1/ptm/b/it/9 Abstract\OT1/ptm/b/n/9 ---Businesses in health-care, de-fense
-, and heavy-
- []
-
-
 
 
 
@@ -350,35 +344,35 @@ ocal/texlive/2024/texmf-dist/fonts/enc/dvips/base/8r.enc}
 <Fig. 1.png, id=10, 2446.64063pt x 1187.93813pt>
 File: Fig. 1.png Graphic file (type png)
 <use Fig. 1.png>
-Package pdftex.def Info: Fig. 1.png  used on input line 50.
+Package pdftex.def Info: Fig. 1.png  used on input line 51.
 (pdftex.def)             Requested size: 252.0pt x 122.35355pt.
 <Fig. 2.png, id=12, 1833.09843pt x 862.72313pt>
 File: Fig. 2.png Graphic file (type png)
 <use Fig. 2.png>
-Package pdftex.def Info: Fig. 2.png  used on input line 66.
+Package pdftex.def Info: Fig. 2.png  used on input line 65.
 (pdftex.def)             Requested size: 252.0pt x 118.59517pt.
 
 
 <Fig. 3.png, id=13, 1097.60063pt x 752.0597pt>
 File: Fig. 3.png Graphic file (type png)
 <use Fig. 3.png>
-Package pdftex.def Info: Fig. 3.png  used on input line 75.
+Package pdftex.def Info: Fig. 3.png  used on input line 74.
 (pdftex.def)             Requested size: 252.0pt x 172.66025pt.
 <Fig. 4.png, id=14, 1034.36438pt x 761.09344pt>
 File: Fig. 4.png Graphic file (type png)
 <use Fig. 4.png>
-Package pdftex.def Info: Fig. 4.png  used on input line 81.
+Package pdftex.def Info: Fig. 4.png  used on input line 80.
 (pdftex.def)             Requested size: 252.0pt x 185.41852pt.
 
 
 [2 <./Fig. 1.png> <./Fig. 2.png> <./Fig. 3.png>]
-LaTeX Font Info:    Trying to load font information for U+msa on input line 93.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 91.
 
 
 (/usr/local/texlive/2024/texmf-dist/tex/latex/amsfonts/umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 93.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 91.
 
 
 (/usr/local/texlive/2024/texmf-dist/tex/latex/amsfonts/umsb.fd
@@ -388,7 +382,7 @@ File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 ! Missing $ inserted.
 <inserted text> 
                 $
-l.129 ...3–569. doi: 10.1007/978-3-030-43020-7{_
+l.126 ...3–569. doi: 10.1007/978-3-030-43020-7{_
                                                   }74.
 I've inserted a begin-math/end-math symbol since I think
 you left one out. Proceed, with fingers crossed.
@@ -396,7 +390,7 @@ you left one out. Proceed, with fingers crossed.
 ! Missing { inserted.
 <to be read again> 
                    }
-l.129 ...–569. doi: 10.1007/978-3-030-43020-7{_}
+l.126 ...–569. doi: 10.1007/978-3-030-43020-7{_}
                                                   74.
 A left brace was mandatory here, so I've put one in.
 You might want to delete and/or insert some corrections
@@ -406,7 +400,7 @@ so that I will find a matching right brace soon.
 ! Missing $ inserted.
 <inserted text> 
                 $
-l.130 
+l.127 
       
 I've inserted a begin-math/end-math symbol since I think
 you left one out. Proceed, with fingers crossed.
@@ -414,7 +408,7 @@ you left one out. Proceed, with fingers crossed.
 ! Missing } inserted.
 <inserted text> 
                 }
-l.130 
+l.127 
       
 I've inserted something that you may have forgotten.
 (See the <inserted text> above.)
@@ -425,25 +419,25 @@ my insertion and my current dilemma will both disappear.
 
 
 [3 <./Fig. 4.png>]
-Underfull \hbox (badness 5231) in paragraph at lines 132--133
+Underfull \hbox (badness 5231) in paragraph at lines 129--130
 []\OT1/ptm/m/n/8 M. Cam-pana, F. Lami-raux, and J.-P. Lau-mond, \A gradient-
  []
 
 
-Underfull \hbox (badness 1430) in paragraph at lines 132--133
+Underfull \hbox (badness 1430) in paragraph at lines 129--130
 \OT1/ptm/m/n/8 based path op-ti-miza-tion method for mo-tion plan-ning," Ad-van
 ced
  []
 
 
-Underfull \hbox (badness 2478) in paragraph at lines 132--133
+Underfull \hbox (badness 2478) in paragraph at lines 129--130
 \OT1/ptm/m/n/8 Robotics, vol. 30, no. 17{18, pp. 1126{1144, Sep. 2016, doi:
  []
 
 ! Missing $ inserted.
 <inserted text> 
                 $
-l.134 .... 1–9. doi: 10.1007/978-3-642-41610-1{_
+l.131 .... 1–9. doi: 10.1007/978-3-642-41610-1{_
                                                   }170-1.
 I've inserted a begin-math/end-math symbol since I think
 you left one out. Proceed, with fingers crossed.
@@ -451,7 +445,7 @@ you left one out. Proceed, with fingers crossed.
 ! Missing { inserted.
 <to be read again> 
                    }
-l.134 ... 1–9. doi: 10.1007/978-3-642-41610-1{_}
+l.131 ... 1–9. doi: 10.1007/978-3-642-41610-1{_}
                                                   170-1.
 A left brace was mandatory here, so I've put one in.
 You might want to delete and/or insert some corrections
@@ -461,7 +455,7 @@ so that I will find a matching right brace soon.
 ! Missing $ inserted.
 <inserted text> 
                 $
-l.135 
+l.132 
       
 I've inserted a begin-math/end-math symbol since I think
 you left one out. Proceed, with fingers crossed.
@@ -469,7 +463,7 @@ you left one out. Proceed, with fingers crossed.
 ! Missing } inserted.
 <inserted text> 
                 }
-l.135 
+l.132 
       
 I've inserted something that you may have forgotten.
 (See the <inserted text> above.)
@@ -478,29 +472,29 @@ really didn't forget anything, try typing `2' now; then
 my insertion and my current dilemma will both disappear.
 
 
-Underfull \hbox (badness 1412) in paragraph at lines 136--137
+Underfull \hbox (badness 1412) in paragraph at lines 133--134
 []\OT1/ptm/m/n/8 G. Costante, C. Forster, J. Delmerico, P. Valigi, and D. Scara
 -
  []
 
 
-Underfull \hbox (badness 1895) in paragraph at lines 136--137
+Underfull \hbox (badness 1895) in paragraph at lines 133--134
 \OT1/ptm/m/n/8 muzza, \Perception-aware Path Plan-ning," Feb. 10, 2017, arXiv:
  []
 
 
-Underfull \hbox (badness 4995) in paragraph at lines 138--139
+Underfull \hbox (badness 4995) in paragraph at lines 135--136
 \OT1/ptm/m/n/8 GPU-Parallel RRT-Connect for Fast, Con-sis-tent, and Low-Cost
  []
 
 
-Underfull \hbox (badness 1616) in paragraph at lines 138--139
+Underfull \hbox (badness 1616) in paragraph at lines 135--136
 \OT1/ptm/m/n/8 Mo-tion Plan-ning," Mar. 09, 2025, arXiv: arXiv:2503.06757. doi:
 
  []
 
 
-Underfull \hbox (badness 8000) in paragraph at lines 143--144
+Underfull \hbox (badness 8000) in paragraph at lines 140--141
 []\OT1/ptm/m/n/8 B. Sun-dar-alingam et al., \cuRobo: Par-al-lelized Collision-F
 ree
  []
@@ -539,7 +533,7 @@ Here is how much of TeX's memory you used:
  27071 multiletter control sequences out of 15000+600000
  592235 words of font info for 104 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 57i,8n,65p,1184b,266s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 57i,8n,65p,1176b,266s stack positions out of 10000i,1000n,20000p,200000b,200000s
 </usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmmi8.pfb>
 </usr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmr8.pfb></u
 sr/local/texlive/2024/texmf-dist/fonts/type1/public/amsfonts/cm/cmsy7.pfb></usr
@@ -548,7 +542,7 @@ ocal/texlive/2024/texmf-dist/fonts/type1/urw/times/utmb8a.pfb></usr/local/texli
 ve/2024/texmf-dist/fonts/type1/urw/times/utmbi8a.pfb></usr/local/texlive/2024/t
 exmf-dist/fonts/type1/urw/times/utmr8a.pfb></usr/local/texlive/2024/texmf-dist/
 fonts/type1/urw/times/utmri8a.pfb>
-Output written on report.pdf (4 pages, 496584 bytes).
+Output written on report.pdf (4 pages, 496391 bytes).
 PDF statistics:
  67 PDF objects out of 1000 (max. 8388607)
  36 compressed objects within 1 object stream
