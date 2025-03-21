@@ -48,7 +48,9 @@ __global__ void generatePoses(float *poses, unsigned long seed, int numPoses, in
     extern __shared__ curandState sharedStates[];
     int idx = threadIdx.x + blockIdx.x*blockDim.x;
     int tid = threadIdx.x;
-    
+    float lower_bound = 0.0;  // change these to satisfy specific joint limits
+    float upper_bound = 1.0;
+
     // If it is first thread in block, initialize curand state
     if (tid == 0){
         curand_init(seed, blockIdx.x, 0, &sharedStates[0]);
@@ -65,7 +67,8 @@ __global__ void generatePoses(float *poses, unsigned long seed, int numPoses, in
                 curand_uniform(&sharedStates[0]);
 
             }
-            poses[idx * dim + d] = curand_uniform(&sharedStates[0]);
+    
+            poses[idx * dim + d] = lower_bound + (upper_bound - lower_bound)*curand_uniform(&sharedStates[0]);
             __syncthreads(); // Ensure all threads finish using the state before next iteration
         }
     }
