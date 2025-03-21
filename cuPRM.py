@@ -26,11 +26,9 @@ import numpy as np
     # Will have method to find kNNs or aNNs (faiss, cuVS)
     # Will have method to assign scores to edges (perception model)
 
-# Maybe Faiss and cuVS classes to handle faiss and cuVS operations
+# Maybe cuVS class to handle cuVS operations
 
-# need a PerceptionModel class
-    # This will be a torch model
-    # Will have a method to assign scores to nodes/edges
+# Have a PerceptionModel class already
 
 class PerceptionPRMPlanner():
     def __init__(
@@ -79,10 +77,8 @@ class PerceptionPRMPlanner():
         pass
 
 
-
     def find_nearest_neighbors(self, samples : torch.Tensor) -> np.ndarray:
-        samples = samples.cpu().numpy()
-        # pass to faiss
+        # pass to cuVS
         # return indices of nearest neighbors
         pass
 
@@ -92,10 +88,9 @@ class PerceptionPRMPlanner():
 
     def assign_perc_scores(self) -> torch.Tensor:
         
-        
         pass    
 
-    def build_graph(self):
+    def build_graph(self):              # score assignment and nearest neighbor search can be done in parallel
         samples = self.sample_collision_free()
         nearest_neighbors = self.find_nearest_neighbors(samples)
         edges = self.create_edges(nearest_neighbors)
