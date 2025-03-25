@@ -45,7 +45,7 @@ void saveToCSV(const std::string& filename, float* data, int numPoses, int dim) 
 
 __global__ void generatePoses(float *poses, unsigned long seed, int numPoses, int dim){
     
-    extern __shared__ curandState sharedStates[];
+    extern __shared__ curandState sharedStates[]; 
     int idx = threadIdx.x + blockIdx.x*blockDim.x;
     int tid = threadIdx.x;
     float lower_bound = 0.0;  // change these to satisfy specific joint limits
