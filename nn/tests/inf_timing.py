@@ -10,11 +10,8 @@ import matplotlib.pyplot as plt
 MODEL_STATE_PATH = "/home/lenman/capstone/parallelrm/models/percscore-nov12-50k.pt"
 BATCH_SIZES = [1, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000, 100000]
 NUM_RUNS = 100
-WARMUP_RUNS = 5
+WARMUP_RUNS = 3
 VERBOSE = True
-
-
-# TODO: model.eval(), torch.no_grad(), discrete batch sizes, one time model conversion/dynamic batching on conversion
 
 
 def run_inference_benchmark(model_state_path, batch_sizes, num_runs, dataframe : pd.DataFrame, warmup_runs=5, verbose = False):
@@ -26,7 +23,7 @@ def run_inference_benchmark(model_state_path, batch_sizes, num_runs, dataframe :
         x = torch.ones((batch_size, 7+3)).cuda()  # Dummy input data for trt creation 
         model = percscorenn.PercScoreProxyNet(label_size=3).cuda()
         model.load_state_dict(torch.load(model_state_path))
-        
+        model.eval()
         # Convert to TensorRT and create random input data
         model_trt = torch2trt(model, [x])
         

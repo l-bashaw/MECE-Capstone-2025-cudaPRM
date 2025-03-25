@@ -91,16 +91,13 @@ void findAllNearestNeighbors(
     int* h_neighbors         // Host output array (numVectors x k)
 ) {
 
-    int numVectors = NUMVECTORS;
-    int dimensions = DIMENSIONS;
-    int numNeighbors = K;
 
     // Allocate device memory
     float *d_vectors;
     int *d_neighbors;
     
-    size_t vectorsSize = numVectors * dimensions * sizeof(float);
-    size_t neighborsSize = numVectors * numNeighbors * sizeof(int);
+    size_t vectorsSize = NUMVECTORS * DIMENSIONS * sizeof(float);
+    size_t neighborsSize = NUMVECTORS * K * sizeof(int);
     
     cudaMalloc((void**)&d_vectors, vectorsSize);
     cudaMalloc((void**)&d_neighbors, neighborsSize);
@@ -110,7 +107,7 @@ void findAllNearestNeighbors(
     
     // Configure grid and block dimensions
     int threadsPerBlock = 256;
-    int blocksPerGrid = (numVectors + threadsPerBlock - 1) / threadsPerBlock;
+    int blocksPerGrid = (NUMVECTORS + threadsPerBlock - 1) / threadsPerBlock;
     
     findNeighbors<<<blocksPerGrid, threadsPerBlock>>>(d_vectors, d_neighbors);
     cudaCheckErrors("kernel launch failure");
@@ -163,16 +160,13 @@ void saveToCSV(const std::string& filename, int* data, int numPoses, int dim) {
 }
 
 int main() {
-    const int numVectors = NUMVECTORS;
-    const int dimensions = DIMENSIONS;
-    const int numNeighbors = K;
 
     // Allocate and initialize host memory
-    float* h_vectors = new float[numVectors * dimensions];
-    int* h_neighbors = new int[numVectors * numNeighbors];
+    float* h_vectors = new float[NUMVECTORS * DIMENSIONS];
+    int* h_neighbors = new int[NUMVECTORS * K];
     
     // Initialize vectors with random data
-    for (int i = 0; i < numVectors * dimensions; i++) {
+    for (int i = 0; i < NUMVECTORS * DIMENSIONS; i++) {
         h_vectors[i] = static_cast<float>(rand()) / RAND_MAX;
     }
     
@@ -188,17 +182,17 @@ int main() {
         // Print some results
         for (int i = 387; i < 391; i++) {  
             printf("Nearest neighbors for vector %d: ", i);
-            for (int j = 0; j < numNeighbors; j++) {
-                printf("%d ", h_neighbors[i * numNeighbors + j]);
+            for (int j = 0; j < K; j++) {
+                printf("%d ", h_neighbors[i * K + j]);
             }
             printf("\n");
         }
 
         // Save vectors to CSV file
-        saveToCSV("vectors.csv", h_vectors, numVectors, dimensions);
+        saveToCSV("vectors.csv", h_vectors, NUMVECTORS, DIMENSIONS);
 
         //save neighbors to CSV file
-        saveToCSV("neighbors.csv", h_neighbors, numVectors, numNeighbors);
+        saveToCSV("neighbors.csv", h_neighbors, NUMVECTORS, K);
     }
   
 
