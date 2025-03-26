@@ -31,6 +31,8 @@ __global__ void findNeighbors(
             int* neighbors          // Output array of neighbor indices (numVectors x k)
 ) {
 
+   
+
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     
     if(i >= NUMVECTORS) return;
@@ -44,7 +46,11 @@ __global__ void findNeighbors(
         topIndices[s] = -1;
     }
 
-
+    // Load vector i into registers
+    float vec_i[DIMENSIONS];
+    for (int d = 0; d < DIMENSIONS; d++) {
+        vec_i[d] = vectors[i * DIMENSIONS + d];
+    }
 
     for (int j = 0; j < NUMVECTORS; j++) {
         
@@ -53,15 +59,16 @@ __global__ void findNeighbors(
         
         // Compute Euclidean distance between vectors i and j
         for (int d = 0; d < DIMENSIONS; d++) {
-            float diff = vectors[i * DIMENSIONS + d] - vectors[j * DIMENSIONS + d];
+            float diff = vec_i[d] - vectors[j * DIMENSIONS + d];
             distance += diff * diff;
         }
-        
+
+        // TODO: try to get rid of this loop - may be a simpler way to store these values
         for (int m = 0; m < K; m++) {
             if (distance < topDistances[m]) {
 
-                // Shift elements to make room
-                for (int n = K - 1; n > m; n--) {
+                // Shift elements to make room         
+                for (int n = K - 1; n > m; n--) {                      
                     topDistances[n] = topDistances[n - 1];
                     topIndices[n] = topIndices[n - 1];
                 }
@@ -74,7 +81,6 @@ __global__ void findNeighbors(
         }
         
     }
-   
     for (int j = 0; j < K; j++) {
         neighbors[i * K + j] = topIndices[j];
     }
@@ -176,7 +182,7 @@ int main() {
     
     
 
-    bool verbose = true;
+    bool verbose = false;
     if (verbose){
 
         // Print some results
