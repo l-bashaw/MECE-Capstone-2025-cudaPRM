@@ -19,7 +19,6 @@
         } \
     } while (0)
 
-// TODO: add macro definitions for k, numVectors, dimensions, etc.
 #define K 10
 #define NUMVECTORS 10000
 #define DIMENSIONS 15
