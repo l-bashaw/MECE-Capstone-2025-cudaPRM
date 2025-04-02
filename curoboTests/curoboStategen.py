@@ -22,15 +22,17 @@ from curobo.types.base import TensorDeviceType
 from curobo.wrap.model.robot_world import RobotWorld, RobotWorldConfig
 
 if __name__ == "__main__":
-    robot_file = "ur5e.yml"
-    world_file = "collision_table.yml"
+    robot_file = "stretch.yml"
+    world_file = "collision_test.yml"
     tensor_args = TensorDeviceType()
     config = RobotWorldConfig.load_from_config(
         robot_file, world_file, collision_activation_distance=0.05
     )
     curobo_fn = RobotWorld(config)
 
-
+    q_batch = curobo_fn.sample(1000, mask_valid=False)
+    print(q_batch.shape)
+'''
     num_iters = 10000
     batch_sizes = [100, 1000, 10000, 50000, 100000]
     valid = False
@@ -55,3 +57,4 @@ df = pd.DataFrame(times, columns=column_names)
 
 # Save the DataFrame to a CSV file
 df.to_csv('curobo_Stategen_times.csv', index=False)
+'''
