@@ -26,7 +26,7 @@ def demo_basic_robot():
     tensor_args = TensorDeviceType()
 
     # load a urdf:
-    config_file = load_yaml(join_path(get_robot_path(), "franka.yml"))
+    config_file = load_yaml(join_path(get_robot_path(), "stretch.yml"))
 
     urdf_file = config_file["robot_cfg"]["kinematics"][
         "urdf_path"
@@ -38,9 +38,9 @@ def demo_basic_robot():
     kin_model = CudaRobotModel(robot_cfg.kinematics)
 
     # compute forward kinematics:
-
     q = torch.rand((1, kin_model.get_dof()), **(tensor_args.as_torch_dict()))
     out = kin_model.get_state(q)
+
     # here is the kinematics state:
     print(out)
 
@@ -49,18 +49,18 @@ def demo_full_config_robot():
     setup_curobo_logger("info")
     tensor_args = TensorDeviceType()
     # load a urdf:
-    config_file = load_yaml(join_path(get_robot_path(), "franka.yml"))["robot_cfg"]
+    config_file = load_yaml(join_path(get_robot_path(), "stretch.yml"))["robot_cfg"]
     robot_cfg = RobotConfig.from_dict(config_file, tensor_args)
 
     kin_model = CudaRobotModel(robot_cfg.kinematics)
 
     # compute forward kinematics:
-    q = torch.rand((10, kin_model.get_dof()), **(tensor_args.as_torch_dict()))
+    q = torch.rand((100, kin_model.get_dof()), **(tensor_args.as_torch_dict()))
     out = kin_model.get_state(q)
     # here is the kinematics state:
     # print(out)
 
 
 if __name__ == "__main__":
-    demo_basic_robot()
+    #demo_basic_robot()
     demo_full_config_robot()

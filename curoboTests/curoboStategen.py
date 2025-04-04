@@ -30,7 +30,7 @@ if __name__ == "__main__":
     )
     curobo_fn = RobotWorld(config)
 
-    q_batch = curobo_fn.sample(1000, mask_valid=False)
+    q_batch = curobo_fn.sample(1000, mask_valid=True)
     print(q_batch.shape)
 '''
     num_iters = 10000
