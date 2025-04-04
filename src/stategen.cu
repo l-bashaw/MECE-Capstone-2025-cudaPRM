@@ -1,11 +1,16 @@
 #include <stdio.h>
 #include <cuda_runtime.h>
 #include <curand_kernel.h>
-#include "knncuda.h"
 #include <chrono>
 #include <iostream>
 #include <fstream>
 #include <vector>
+
+// TODO:
+//      Take vector of robot poses and object pose, compute the difference.
+//      Given robot configuration and object pose, compute the forward kinematics
+//      and return the pose of the robot's camera in the world frame.
+//      
 
 // error checking macro
 #define cudaCheckErrors(msg) \
@@ -43,7 +48,7 @@ void saveToCSV(const std::string& filename, float* data, int numPoses, int dim) 
 
 
 
-__global__ void generatePoses(float *poses, unsigned long seed, int numPoses, int dim){
+__global__ void generatePoses(float *states, unsigned long seed, int numStates, int dim){
     
     extern __shared__ curandState sharedStates[]; 
     int idx = threadIdx.x + blockIdx.x*blockDim.x;
@@ -60,7 +65,7 @@ __global__ void generatePoses(float *poses, unsigned long seed, int numPoses, in
     __syncthreads(); // Ensure all threads finish initializing curand state
 
 
-    if(idx < numPoses){
+    if(idx < numStates){
         for (int d = 0; d < dim; d++){
             // Skip ahead based on thread ID to maintain randomness
             for (int j = 0; j < tid; j++){
@@ -68,12 +73,23 @@ __global__ void generatePoses(float *poses, unsigned long seed, int numPoses, in
 
             }
     
-            poses[idx * dim + d] = lower_bound + (upper_bound - lower_bound)*curand_uniform(&sharedStates[0]);
+            states[idx * dim + d] = lower_bound + (upper_bound - lower_bound)*curand_uniform(&sharedStates[0]);
             __syncthreads(); // Ensure all threads finish using the state before next iteration
         }
     }
-
     
+}
+
+__global__ void projectStates(float *poses, int numPoses, int dim, float *objectPose){
+    // This kernel is a placeholder for any pose projection logic
+    // For now, it just copies the poses to the output
+    int idx = threadIdx.x + blockIdx.x*blockDim.x;
+    if (idx >= numPoses) return;
+
+    // Each thread handles the projection of one state
+    // Object pose is 7D quaternion
+    // Need to get FK code to turn state/configuration vector into pose vector
+
 }
 
 void displayPoses(float *poses, int numPoses, int dim){
