@@ -371,7 +371,7 @@ robot_cfg:
       "link_wrist_yaw": ["link_wrist_pitch", "link_wrist_yaw_bottom", "link_gripper_s3_body"],
       "link_wrist_yaw_bottom": ["link_wrist_pitch", "link_gripper_s3_body"],
       "link_wrist_pitch": ["link_gripper_s3_body"],
-      "link_gripper_s3_body": ["link_gripper_fingertip_right", "link_gripper_fingertip_left", "link_gripper_finger_right", "link_gripper_finger_left", "link_head_nav_cam"],
+      "link_gripper_s3_body": ["link_gripper_finger_right", "link_gripper_finger_left"],
       "link_gripper_finger_right": ["link_gripper_fingertip_right"],
       "link_gripper_finger_left": ["link_gripper_fingertip_left"],
     } # Dict[str, List[str]]
