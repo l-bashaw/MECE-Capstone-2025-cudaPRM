@@ -6,6 +6,10 @@
 #include <fstream>
 #include <vector>
 
+__constant__ float lower_bounds[7] = { -1.0f, 0.0f, 2.0f, -0.5f, 0.1f, -2.0f, 0.0f };
+__constant__ float upper_bounds[7] = { 1.0f, 5.0f, 10.0f, 0.5f, 1.0f, 2.0f, 3.0f };
+
+
 // TODO:
 //      Take vector of robot poses and object pose, compute the difference.
 //      Given robot configuration and object pose, compute the forward kinematics
@@ -67,14 +71,14 @@ __global__ void generatePoses(float *states, unsigned long seed, int numStates, 
 
     if(idx < numStates){
         for (int d = 0; d < dim; d++){
-            // Skip ahead based on thread ID to maintain randomness
             for (int j = 0; j < tid; j++){
                 curand_uniform(&sharedStates[0]);
-
             }
-    
-            states[idx * dim + d] = lower_bound + (upper_bound - lower_bound)*curand_uniform(&sharedStates[0]);
-            __syncthreads(); // Ensure all threads finish using the state before next iteration
+            float rand_val = curand_uniform(&sharedStates[0]);
+            float lower_bound = lower_bounds[d];
+            float upper_bound = upper_bounds[d];
+            states[idx * dim + d] = lower_bound + (upper_bound - lower_bound) * rand_val;
+            __syncthreads();
         }
     }
     
@@ -118,6 +122,8 @@ int main(){
 
     bool time = true;
     bool pose = false;
+
+
 
     // Pin host memory for faster memory transfers
     float *h_poses, *d_poses;
