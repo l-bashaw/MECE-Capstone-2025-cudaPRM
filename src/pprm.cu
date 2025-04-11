@@ -120,6 +120,15 @@ void freeRoadmap(Roadmap &map) {
     cudaFree(map.d_valid);
 }
 
+__global__ void warmupKernel() {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < NUM_STATES) {
+        // Perform a simple operation to avoid compiler optimization
+        float x = static_cast<float>(idx);
+        float y = x * x;
+    }
+}
+
 int main(){
     printf("1");
     
@@ -149,20 +158,48 @@ int main(){
     int *h_neighbors = prm.h_neighbors;
     bool *h_valid = prm.h_valid;
 
+       
+
+    cudaEvent_t start, stop;
+    cudaEventCreate(&start);
+    cudaEventCreate(&stop);
+    
+    // Warmup kernel
+    warmupKernel<<<1, 1>>>();
+    cudaDeviceSynchronize();
+    cudaCheckErrors("Warmup kernel launch failure");
+ 
+
+    cudaEventRecord(start);
+
     // Generate states
     prm::construction::generateStates<<<gridsize, blocksize>>>(d_states, seed);
+    cudaDeviceSynchronize();
     cudaCheckErrors("Stategen kernel launch failure");
 
     prm::construction::findNeighbors<<<gridsize, blocksize>>>(d_states, d_neighbors);
+    cudaDeviceSynchronize();
     cudaCheckErrors("kNN kernel launch failure");
 
     prm::construction::lin_interp<<<gridsize, blocksize>>>(d_states, d_neighbors, d_edges);
+    cudaDeviceSynchronize();
     cudaCheckErrors("Interpolation kernel launch failure");
 
     collision::environment::nodeInCollision<<<gridsize, blocksize>>>(d_states, d_valid, *env_d);
+    cudaDeviceSynchronize();
     cudaCheckErrors("Collision kernel launch failure");
 
-    
+    cudaEventRecord(stop);
+    cudaEventSynchronize(stop);  // Wait for all kernels to finish
+
+    float milliseconds = 0;
+    cudaEventElapsedTime(&milliseconds, start, stop);
+    printf("Kernels completed in %.3f ms\n", milliseconds);
+
+    // Clean up
+    cudaEventDestroy(start);
+    cudaEventDestroy(stop);
+
     freeRoadmap(prm);
 
     // Free environment memory

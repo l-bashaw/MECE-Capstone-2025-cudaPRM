@@ -27,6 +27,6 @@ __constant__ float UPPER_BOUNDS[5] = { 10.0f ,  10.0f, 2*M_PI, 0.0, 0.0  };
 
 // PRM parameters
 #define K 10
-#define NUM_STATES 10000
-#define DIM 11
+#define NUM_STATES 1000
+#define DIM 5
 #define INTERP_STEPS 5
