@@ -4,7 +4,8 @@
             "name": "Linux",
             "includePath": [
                 "${workspaceFolder}/**",
-                "/home/lenman/capstone/parallelrm/include"
+                "/home/lenman/capstone/parallelrm/include",
+                "/usr/local/cuda-12.6/targets/x86_64-linux/include"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",
