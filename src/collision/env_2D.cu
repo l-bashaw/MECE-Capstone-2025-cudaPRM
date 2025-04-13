@@ -81,9 +81,5 @@ namespace collision::environment{
         return env;
     }
 
-    void destroyEnv1(env_2D& env){
-        delete[] env.circles;
-        delete[] env.rectangles;
-    }
-    
+  
 }

@@ -23,11 +23,18 @@ namespace collision::environment{
         float y_min;
         float y_max;
 
-        circle* circles;
-        rectangle* rectangles;
+        circle *circles;
+        rectangle *rectangles;
 
         unsigned int numCircles;
         unsigned int numRectangles;
+
+        env_2D() = default;
+
+        ~env_2D() {
+            delete[] circles;
+            delete[] rectangles;
+        }
     };
 
 
@@ -35,7 +42,6 @@ namespace collision::environment{
 
     env_2D setupEnv1();
 
-    void destroyEnv1(env_2D& env);
 
     // void setupDeviceEnv(env_2D* &env_d, const env_2D& env_h);
 

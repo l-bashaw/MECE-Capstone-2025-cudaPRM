@@ -15,10 +15,18 @@ namespace collision::environment{
         rectangle &rect
     );
 
-    __global__ void nodeInCollision(
+    __global__ void nodesInCollision(
         float* states, 
         bool* valid, 
         env_2D &env
     );
+
+    __global__ void edgesInCollision(
+        float* edges, 
+        bool* valid, 
+        env_2D &env
+    );
+
+
 
 }
