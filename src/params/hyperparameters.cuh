@@ -1,7 +1,4 @@
 #pragma once
-
-#include <cuda_runtime.h>
-#include <cmath>
 #include <iostream>
 
 // CUDA error-checking macro

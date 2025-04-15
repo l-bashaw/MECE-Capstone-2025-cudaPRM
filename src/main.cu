@@ -1,8 +1,6 @@
 #include "params/hyperparameters.cuh"
 #include "planning/pprm.cuh"
 
-
-
 void saveResults(planning::Roadmap &prm, collision::environment::Env2D &env_h){
     FILE *file = fopen("roadmap.txt", "w");
     if (file == NULL) {

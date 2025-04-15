@@ -1,4 +1,3 @@
-#include <cuda_runtime.h>
 #include <curand_kernel.h>
 #include <float.h>
 #include "../params/hyperparameters.cuh"

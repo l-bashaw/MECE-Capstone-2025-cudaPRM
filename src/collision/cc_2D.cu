@@ -1,6 +1,3 @@
-#include <cuda_runtime.h>
-#include <iostream>
-
 #include "../params/hyperparameters.cuh"
 #include "env_2D.cuh"
 #include "cc_2D.cuh"

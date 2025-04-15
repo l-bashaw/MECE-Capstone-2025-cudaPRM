@@ -1,8 +1,6 @@
 #pragma once
-#include "env_2D.cuh"
 
 namespace collision::environment{
-
     __device__ bool inCollisionCircle(
         float x,  
         float y, 
@@ -26,7 +24,4 @@ namespace collision::environment{
         bool* valid, 
         Env2D &env
     );
-
-
-
 }
