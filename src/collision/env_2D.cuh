@@ -3,13 +3,13 @@
 namespace collision::environment{
 
     // Structs for circluar and rectangular obstacles
-    struct circle{
+    struct Circle{
         float x;  // (x,y) defines the center
         float y;
         float r;
     };
 
-    struct rectangle{
+    struct Rectangle{
         float x;  // (x,y) defines the center
         float y;
         float h;
@@ -17,30 +17,30 @@ namespace collision::environment{
     };
 
     // Environment struct that contains the world bounds and obstacles
-    struct env_2D{
+    struct Env2D{
         float x_min;
         float x_max;
         float y_min;
         float y_max;
 
-        circle *circles;
-        rectangle *rectangles;
+        Circle *circles;
+        Rectangle *rectangles;
 
         unsigned int numCircles;
         unsigned int numRectangles;
 
-        env_2D() = default;
+        Env2D() = default;
 
-        ~env_2D() {
+        ~Env2D() {
             delete[] circles;
             delete[] rectangles;
         }
     };
 
 
-    bool isValidEnvironment(const env_2D& env);
+    bool isValidEnvironment(const Env2D& env);
 
-    env_2D setupEnv1();
+    Env2D setupEnv1();
 
 
     // void setupDeviceEnv(env_2D* &env_d, const env_2D& env_h);

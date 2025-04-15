@@ -101,7 +101,7 @@ def main():
     
     fig = visualize_prm(states, neighbors, valid_nodes, valid_edges, bounds, circles, rectangles)
     #plt.tight_layout()
-    plt.savefig("prm_visualization.png", dpi=300)
+    #plt.savefig("prm_visualization.png", dpi=300)
     plt.show()
 
 if __name__ == "__main__":

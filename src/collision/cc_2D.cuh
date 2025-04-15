@@ -6,25 +6,25 @@ namespace collision::environment{
     __device__ bool inCollisionCircle(
         float x,  
         float y, 
-        circle &c
+        Circle &c
     );
 
     __device__ bool inCollisionRectangle(
         float x,  
         float y,
-        rectangle &rect
+        Rectangle &rect
     );
 
     __global__ void nodesInCollision(
         float* states, 
         bool* valid, 
-        env_2D &env
+        Env2D &env
     );
 
     __global__ void edgesInCollision(
         float* edges, 
         bool* valid, 
-        env_2D &env
+        Env2D &env
     );
 
 

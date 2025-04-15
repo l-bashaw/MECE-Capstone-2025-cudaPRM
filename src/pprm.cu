@@ -6,21 +6,21 @@
 #include "collision/env_2D.cuh"
 #include "params/hyperparameters.cuh"
 
-void setupEnv(collision::environment::env_2D *&env_d, const collision::environment::env_2D &env_h){
-    cudaMalloc(&env_d, sizeof(collision::environment::env_2D));
+void setupEnv(collision::environment::Env2D *&env_d, const collision::environment::Env2D &env_h){
+    cudaMalloc(&env_d, sizeof(collision::environment::Env2D));
     cudaCheckErrors("cudaMalloc failure");
-    cudaMemset(env_d, 0, sizeof(collision::environment::env_2D));  // Set to zeros first
+    cudaMemset(env_d, 0, sizeof(collision::environment::Env2D));  // Set to zeros first
     cudaCheckErrors("cudaMemset failure");
 
     if (env_h.numCircles > 0) {
-        collision::environment::circle *d_circles;
-        cudaMalloc(&d_circles, env_h.numCircles * sizeof(collision::environment::circle));
+        collision::environment::Circle *d_circles;
+        cudaMalloc(&d_circles, env_h.numCircles * sizeof(collision::environment::Circle));
         cudaCheckErrors("cudaMalloc failure");
 
         cudaMemcpy(
             d_circles, 
             env_h.circles, 
-            env_h.numCircles * sizeof(collision::environment::circle), 
+            env_h.numCircles * sizeof(collision::environment::Circle), 
             cudaMemcpyHostToDevice
         );
         cudaCheckErrors("cudaMemcpy failure");
@@ -28,7 +28,7 @@ void setupEnv(collision::environment::env_2D *&env_d, const collision::environme
         cudaMemcpy(
             &(env_d->circles),
             &d_circles,
-            sizeof(collision::environment::circle*),
+            sizeof(collision::environment::Circle*),
             cudaMemcpyHostToDevice
         );
         cudaCheckErrors("cudaMemcpy failure");
@@ -42,14 +42,14 @@ void setupEnv(collision::environment::env_2D *&env_d, const collision::environme
     }
 
     if (env_h.numRectangles > 0) {
-        collision::environment::rectangle* d_rectangles;
-        cudaMalloc(&d_rectangles, env_h.numRectangles * sizeof(collision::environment::rectangle));
+        collision::environment::Rectangle* d_rectangles;
+        cudaMalloc(&d_rectangles, env_h.numRectangles * sizeof(collision::environment::Rectangle));
         cudaCheckErrors("cudaMalloc failure");
 
         cudaMemcpy(
             d_rectangles, 
             env_h.rectangles, 
-            env_h.numRectangles * sizeof(collision::environment::rectangle), 
+            env_h.numRectangles * sizeof(collision::environment::Rectangle), 
             cudaMemcpyHostToDevice
         );
         cudaCheckErrors("cudaMemcpy failure");
@@ -57,7 +57,7 @@ void setupEnv(collision::environment::env_2D *&env_d, const collision::environme
         cudaMemcpy(
             &(env_d->rectangles),
             &d_rectangles,
-            sizeof(collision::environment::rectangle*),
+            sizeof(collision::environment::Rectangle*),
             cudaMemcpyHostToDevice
         );
         cudaCheckErrors("cudaMemcpy failure");
@@ -71,19 +71,19 @@ void setupEnv(collision::environment::env_2D *&env_d, const collision::environme
     } // Environment setup on device.
 }
 
-void cleanupEnv(collision::environment::env_2D *env_d, const collision::environment::env_2D &env_h){
+void cleanupEnv(collision::environment::Env2D *env_d, const collision::environment::Env2D &env_h){
     
-    collision::environment::circle *d_circles = nullptr;
-    collision::environment::rectangle *d_rectangles = nullptr;
+    collision::environment::Circle *d_circles = nullptr;
+    collision::environment::Rectangle *d_rectangles = nullptr;
 
     if(env_h.numCircles > 0){
-        cudaMemcpy(&d_circles, &(env_d->circles), sizeof(collision::environment::circle*), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&d_circles, &(env_d->circles), sizeof(collision::environment::Circle*), cudaMemcpyDeviceToHost);
         cudaCheckErrors("cudaMemcpy failure");
         cudaFree(d_circles);
         cudaCheckErrors("cudaFree failure");
     }
     if(env_h.numRectangles > 0){
-        cudaMemcpy(&d_rectangles, &(env_d->rectangles), sizeof(collision::environment::rectangle*), cudaMemcpyDeviceToHost);
+        cudaMemcpy(&d_rectangles, &(env_d->rectangles), sizeof(collision::environment::Rectangle*), cudaMemcpyDeviceToHost);
         cudaCheckErrors("cudaMemcpy failure");
         cudaFree(d_rectangles);
         cudaCheckErrors("cudaFree failure");
@@ -211,8 +211,8 @@ void displayStateAndNeighbors(int stateIndex, const Roadmap& prm, int numStates,
 int main(){
     
     // Set up the environment
-    collision::environment::env_2D env_h = collision::environment::setupEnv1();
-    collision::environment::env_2D* env_d;
+    collision::environment::Env2D env_h = collision::environment::setupEnv1();
+    collision::environment::Env2D* env_d;
 
     setupEnv(env_d, env_h);
 

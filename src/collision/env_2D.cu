@@ -4,7 +4,7 @@
 namespace collision::environment{
     
     // Function to check if a created environment is valid
-    bool isValidEnvironment(const env_2D& env){
+    bool isValidEnvironment(const Env2D& env){
         // Check if bounds are valid
         if (env.x_min >= env.x_max || env.y_min >= env.y_max){
             printf("Environment bounds are invalid\n");
@@ -37,14 +37,14 @@ namespace collision::environment{
         return true;
     }
 
-    env_2D setupEnv1(){
-        env_2D env;
+    Env2D setupEnv1(){
+        Env2D env;
         env.numCircles = 2;
         env.numRectangles = 2;
 
         // Allocate memory for circles and rectangles
-        env.circles = new circle[env.numCircles];
-        env.rectangles = new rectangle[env.numRectangles];
+        env.circles = new Circle[env.numCircles];
+        env.rectangles = new Rectangle[env.numRectangles];
     
         // Define circular obstacles
         env.circles[0].x = 0.0f;
