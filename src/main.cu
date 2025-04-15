@@ -1,20 +1,7 @@
 #include "params/hyperparameters.cuh"
 #include "planning/pprm.cuh"
-#include "collision/cc_2D.cuh"
-#include "planning/construction.cuh"
 
-void copyToHost(Roadmap &prm){
-    cudaMemcpy(prm.h_states, prm.d_states, NUM_STATES * DIM * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaCheckErrors("cudaMemcpy h_states failure");
-    cudaMemcpy(prm.h_edges, prm.d_edges, NUM_STATES * DIM * K * INTERP_STEPS * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaCheckErrors("cudaMemcpy h_edges failure");
-    cudaMemcpy(prm.h_neighbors, prm.d_neighbors, NUM_STATES * K * sizeof(int), cudaMemcpyDeviceToHost);
-    cudaCheckErrors("cudaMemcpy h_neighbors failure");
-    cudaMemcpy(prm.h_validNodes, prm.d_validNodes, NUM_STATES * sizeof(bool), cudaMemcpyDeviceToHost);
-    cudaCheckErrors("cudaMemcpy h_valid failure");
-    cudaMemcpy(prm.h_validEdges, prm.d_validEdges, NUM_STATES * K * sizeof(bool), cudaMemcpyDeviceToHost);
-    cudaCheckErrors("cudaMemcpy h_valid failure");
-}
+
 
 void saveResults(Roadmap &prm, collision::environment::Env2D &env_h){
     FILE *file = fopen("roadmap.txt", "w");
@@ -56,6 +43,59 @@ void saveResults(Roadmap &prm, collision::environment::Env2D &env_h){
     std::cout << "Roadmap saved to roadmap.txt" << std::endl;
 }
 
+void displayStateAndNeighbors(int stateIndex, const Roadmap& prm, int numStates, int interpSteps, int dim) {
+    float* h_states = prm.h_states;
+    float* h_edges = prm.h_edges;
+    int* h_neighbors = prm.h_neighbors;
+    bool* h_validNodes = prm.h_validNodes;
+    
+    // Print state information
+    std::cout << "--- State " << stateIndex << " ---\n";
+    std::cout << "Position: (";
+    for (int d = 0; d < dim; d++) {
+        std::cout << h_states[stateIndex * dim + d];
+        if (d < dim - 1) std::cout << ", ";
+    }
+    std::cout << ")\n";
+    std::cout << "Valid: " << (h_validNodes[stateIndex] ? "Yes" : "No") << "\n\n";
+    
+    // Print neighbors and interpolation paths
+    std::cout << "Neighbors of State " << stateIndex << ":\n";
+    for (int i = 0; i < K; i++) {
+        int neighborIdx = h_neighbors[stateIndex * K + i];
+        
+        // Check if it's a valid neighbor index
+        if (neighborIdx >= 0 && neighborIdx < numStates) {
+            std::cout << "  Neighbor " << i << " (State " << neighborIdx << "): (";
+            
+            // Print neighbor position
+            for (int d = 0; d < dim; d++) {
+                std::cout << h_states[neighborIdx * dim + d];
+                if (d < dim - 1) std::cout << ", ";
+            }
+            std::cout << ")\n";
+            
+            // Print interpolation path
+            std::cout << "    Interpolation path:\n";
+            for (int step = 0; step < interpSteps; step++) {
+                int edgeIndex = (stateIndex * K + i) * interpSteps * dim + step * dim;
+                std::cout << "      Step " << step << ": (";
+                
+                for (int d = 0; d < dim; d++) {
+                    std::cout << h_edges[edgeIndex + d];
+                    if (d < dim - 1) std::cout << ", ";
+                }
+                std::cout << ")\n";
+            }
+            std::cout << "\n";
+        } else {
+            std::cout << "  Neighbor " << i << ": Invalid index " << neighborIdx << "\n";
+        }
+    }
+    std::cout << "----------------------\n";
+}
+
+
 
 int main(){
     
@@ -68,9 +108,7 @@ int main(){
     cudaDeviceProp deviceProp;
     cudaGetDeviceProperties(&deviceProp, 0);
 
-    int blocksize = 256;
-    int gridsize = (NUM_STATES + blocksize - 1) / blocksize;
-    int gridsize1 = (NUM_STATES * K + blocksize - 1) / blocksize;
+    
     unsigned long seed = 12345UL;
 
 
@@ -92,25 +130,9 @@ int main(){
     // Start timing
     cudaEventRecord(start);
 
-    // Generate states
-    prm::construction::generateStates<<<gridsize, blocksize>>>(prm.d_states, seed);
-    cudaDeviceSynchronize();
-    cudaCheckErrors("Stategen kernel launch failure");
-
-    prm::construction::findNeighbors<<<gridsize, blocksize>>>(prm.d_states, prm.d_neighbors);
-    cudaDeviceSynchronize();
-    cudaCheckErrors("kNN kernel launch failure");
-
-    prm::construction::lin_interp<<<gridsize, blocksize>>>(prm.d_states, prm.d_neighbors, prm.d_edges);
-    cudaDeviceSynchronize();
-    cudaCheckErrors("Interpolation kernel launch failure");
-
-    collision::environment::nodesInCollision<<<gridsize, blocksize>>>(prm.d_states, prm.d_validNodes, *env_d);
-    cudaDeviceSynchronize();
-    cudaCheckErrors("Collision kernel launch failure");
-
-    collision::environment::edgesInCollision<<<gridsize1, blocksize>>>(prm.d_edges, prm.d_validEdges, *env_d);
-    cudaDeviceSynchronize();
+    // Build the roadmap
+    buildRoadmap(prm, env_d, seed);
+    cudaCheckErrors("Roadmap construction failure");
 
     // Stop timing and calculate elapsed time
     cudaEventRecord(stop);
@@ -124,8 +146,7 @@ int main(){
     // Copy results back to host
     copyToHost(prm);
 
-    // Display the first state and its neighbors
-    // displayStateAndNeighbors(0, prm, NUM_STATES, INTERP_STEPS, DIM);
+    
 
     // Save the results to a file
     saveResults(prm, env_h);

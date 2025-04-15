@@ -16,5 +16,6 @@ void allocateRoadmap(Roadmap &map);
 void freeRoadmap(Roadmap &map);
 
 __global__ void warmupKernel();
-void displayStateAndNeighbors(int stateIndex, const Roadmap& prm, int numStates, int interpSteps, int dim);
 
+void copyToHost(Roadmap &prm);
+void buildRoadmap(Roadmap &prm, collision::environment::Env2D *env_d, unsigned long seed);
