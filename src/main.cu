@@ -3,7 +3,7 @@
 
 
 
-void saveResults(Roadmap &prm, collision::environment::Env2D &env_h){
+void saveResults(planning::Roadmap &prm, collision::environment::Env2D &env_h){
     FILE *file = fopen("roadmap.txt", "w");
     if (file == NULL) {
         std::cerr << "Error opening file for writing" << std::endl;
@@ -43,7 +43,7 @@ void saveResults(Roadmap &prm, collision::environment::Env2D &env_h){
     std::cout << "Roadmap saved to roadmap.txt" << std::endl;
 }
 
-void displayStateAndNeighbors(int stateIndex, const Roadmap& prm, int numStates, int interpSteps, int dim) {
+void displayStateAndNeighbors(int stateIndex, const planning::Roadmap& prm, int numStates, int interpSteps, int dim) {
     float* h_states = prm.h_states;
     float* h_edges = prm.h_edges;
     int* h_neighbors = prm.h_neighbors;
@@ -95,28 +95,33 @@ void displayStateAndNeighbors(int stateIndex, const Roadmap& prm, int numStates,
     std::cout << "----------------------\n";
 }
 
+__global__ void warmupKernel() {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < NUM_STATES) {
+        // Perform a simple operation to avoid compiler optimization
+        float x = static_cast<float>(idx);
+        float y = x * x;
+    }
+}
+
 
 
 int main(){
+
+    // Set up the CUDA device and RNG seed
+    cudaDeviceProp deviceProp;
+    cudaGetDeviceProperties(&deviceProp, 0);
+    unsigned long seed = 12345UL;
     
     // Set up the environment
     collision::environment::Env2D env_h = collision::environment::setupEnv1();
     collision::environment::Env2D* env_d;
-    setupEnv(env_d, env_h);
+    planning::setupEnv(env_d, env_h);
 
-
-    cudaDeviceProp deviceProp;
-    cudaGetDeviceProperties(&deviceProp, 0);
-
+    // Set up the roadmap
+    planning::Roadmap prm;
+    planning::allocateRoadmap(prm);
     
-    unsigned long seed = 12345UL;
-
-
-    Roadmap prm;
-    allocateRoadmap(prm);
-    
-
-       
     // Create timing
     cudaEvent_t start, stop;
     cudaEventCreate(&start);
@@ -131,7 +136,7 @@ int main(){
     cudaEventRecord(start);
 
     // Build the roadmap
-    buildRoadmap(prm, env_d, seed);
+    planning::buildRoadmap(prm, env_d, seed);
     cudaCheckErrors("Roadmap construction failure");
 
     // Stop timing and calculate elapsed time
@@ -144,17 +149,14 @@ int main(){
     cudaEventDestroy(stop);
 
     // Copy results back to host
-    copyToHost(prm);
-
-    
+    planning::copyToHost(prm);
 
     // Save the results to a file
     saveResults(prm, env_h);
 
-    // Clean up
-    
-    freeRoadmap(prm);
-    cleanupEnv(env_d, env_h);
+    // Clean up memory
+    planning::freeRoadmap(prm);
+    planning::cleanupEnv(env_d, env_h);
 
     return 0;
 
