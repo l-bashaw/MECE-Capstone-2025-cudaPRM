@@ -1,4 +1,6 @@
 #pragma once
+#include <cuda_runtime.h>
+// #include <torch/extension.h>
 
 namespace collision::environment{
 
@@ -18,10 +20,7 @@ namespace collision::environment{
 
     // Environment struct that contains the world bounds and obstacles
     struct Env2D{
-        float x_min;
-        float x_max;
-        float y_min;
-        float y_max;
+        float x_min, x_max, y_min, y_max;
 
         Circle *circles;
         Rectangle *rectangles;
@@ -31,20 +30,43 @@ namespace collision::environment{
 
         Env2D() = default;
 
-        ~Env2D() {
-            delete[] circles;
-            delete[] rectangles;
+        bool ownsMemory = false;
+        ~Env2D() { 
+            if (ownsMemory){
+                delete[] circles;
+                delete[] rectangles;
+            }
         }
     };
 
+    struct Env2D_d{
+        float x_min, x_max, y_min, y_max;
+
+        Circle *circles = nullptr;
+        Rectangle *rectangles = nullptr;
+
+        unsigned int numCircles = 0;
+        unsigned int numRectangles = 0;
+
+        ~Env2D_d() { 
+            if (circles != nullptr){
+                cudaFree(circles);
+            }
+            if (rectangles != nullptr){
+                cudaFree(rectangles);
+            }
+        }
+    };
+
+    // void buildEnvFromTensors(
+    //     Env2D_d &env,
+    //     torch::Tensor circles,     // (x, y, r)
+    //     torch::Tensor rectangles,  // (x, y, w, h)
+    //     torch::Tensor bounds       // (x_min, x_max, y_min, y_max)
+    // );
 
     bool isValidEnvironment(const Env2D& env);
 
     Env2D setupEnv1();
-
-
-    // void setupDeviceEnv(env_2D* &env_d, const env_2D& env_h);
-
-    // void destroyDeviceEnv(env_2D* env_d, const env_2D& env_h);
-
+    Env2D setupEnv2();
 }

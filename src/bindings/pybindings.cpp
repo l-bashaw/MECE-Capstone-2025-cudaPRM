@@ -1,59 +1,64 @@
 #include <pybind11/pybind11.h>
-#include <pybind11/numpy.h>         // optional
-#include <pybind11/stl.h>
-#include <pybind11/pytypes.h>
-#include <cuda_runtime.h>
+#include <torch/extension.h>
+
 #include "../planning/pprm.cuh"
+#include "../collision/env_2D.cuh"
 
 namespace py = pybind11;
 
-class PyRoadmap {
-public:
-    planning::Roadmap roadmap_;
+PYBIND11_MODULE(cuPRM, m) {
+
+    m.doc() = "Wowowowowowow"; // Optional module docstring
+
+    m.def("create_env", [](torch::Tensor circles, torch::Tensor rectangles, torch::Tensor bounds){
+        collision::environment::Env2D_d env;
+        collision::environment::buildEnvFromTensors(env, circles, rectangles, bounds);
+        return env;
+    });
+
     
-    // Expose raw device pointer to states array
-    uintptr_t d_states() const { 
-        return reinterpret_cast<uintptr_t>(roadmap_.d_states); 
-    }
 
-    // Expose raw device pointer to edges array
-    uintptr_t d_edges() const { 
-        return reinterpret_cast<uintptr_t>(roadmap_.d_edges); 
-    }
+    py::class_<planning::Roadmap>(m, "Roadmap")
+        .def(py::init<>())  // Default constructor
+        .def_readwrite("h_states", &planning::Roadmap::h_states)
+        .def_readwrite("d_states", &planning::Roadmap::d_states)
+        .def_readwrite("h_edges", &planning::Roadmap::h_edges)
+        .def_readwrite("d_edges", &planning::Roadmap::d_edges)
+        .def_readwrite("h_neighbors", &planning::Roadmap::h_neighbors)
+        .def_readwrite("d_neighbors", &planning::Roadmap::d_neighbors)
+        .def_readwrite("h_validNodes", &planning::Roadmap::h_validNodes)
+        .def_readwrite("d_validNodes", &planning::Roadmap::d_validNodes)
+        .def_readwrite("h_validEdges", &planning::Roadmap::h_validEdges)
+        .def_readwrite("d_validEdges", &planning::Roadmap::d_validEdges);
 
-    // Expose raw device pointer to neighbors array
-    uintptr_t d_neighbors() const { 
-        return reinterpret_cast<uintptr_t>(roadmap_.d_neighbors); 
-    }
+    
+    
+    m.def("setupEnv", &planning::setupEnv, "m");
+    m.def("cleanupEnv", &planning::cleanupEnv, "m");
 
-    // Expose raw device pointer to valid nodes array
-    uintptr_t d_valid_nodes() const { 
-        return reinterpret_cast<uintptr_t>(roadmap_.d_validNodes); 
-    }
+    m.def("allocateRoadmap", &planning::allocateRoadmap, "m");
+    m.def("buildRoadmap", &planning::buildRoadmap, "m");
+    m.def("freeRoadmap", &planning::freeRoadmap, "m");
 
-    // Expose raw device pointer to valid edges array
-    uintptr_t d_valid_edges() const { 
-        return reinterpret_cast<uintptr_t>(roadmap_.d_validEdges); 
-    }
+    m.def("copyToHost", &planning::copyToHost, "m");
 
-    // Constructor, allocate roadmap
-    PyRoadmap() {
-        planning::allocateRoadmap(roadmap_);
-    }
+}
 
-    // Destructor, free roadmap
-    ~PyRoadmap() {
-        planning::freeRoadmap(roadmap_);
-    }
+
+struct MyStruct {
+    int a;
+    double b;
 };
 
-// Pybind11 module definition
-PYBIND11_MODULE(pprm_cuda, m) {
-    py::class_<PyRoadmap>(m, "PyRoadmap")
-        .def(py::init<>())
-        .def("d_states", &PyRoadmap::d_states)
-        .def("d_edges", &PyRoadmap::d_edges)
-        .def("d_neighbors", &PyRoadmap::d_neighbors)
-        .def("d_valid_nodes", &PyRoadmap::d_valid_nodes)
-        .def("d_valid_edges", &PyRoadmap::d_valid_edges);
+int process_struct(const MyStruct& s) {
+    return static_cast<int>(s.a + s.b);
+}
+
+PYBIND11_MODULE(my_module, m) {
+    py::class_<MyStruct>(m, "MyStruct")
+        .def(py::init<>())  // Default constructor
+        .def_readwrite("a", &MyStruct::a)
+        .def_readwrite("b", &MyStruct::b);
+
+    m.def("process_struct", &process_struct, "Process a MyStruct instance");
 }

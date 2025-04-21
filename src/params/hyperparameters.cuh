@@ -19,11 +19,16 @@ __constant__ float LOWER_BOUNDS[5] = { -10.0f, -10.0f, 0.0f  , 0.0, 0.0  };  // 
 __constant__ float UPPER_BOUNDS[5] = { 10.0f ,  10.0f, 2*M_PI, 0.0, 0.0  };  
 
 // Collision checking buffer and robot radius
-#define CC_E 5e-3
-#define R_ROBOT 0.3f
+constexpr float CC_E = 5e-3;
+constexpr float R_ROBOT = 0.3f;
 
 // PRM parameters
-#define K 10
-#define NUM_STATES 500
-#define DIM 5
-#define INTERP_STEPS 5
+constexpr unsigned int K = 5;   
+constexpr unsigned int NUM_STATES = 2000;  
+constexpr unsigned int DIM = 5;
+constexpr unsigned int INTERP_STEPS = 10;
+
+// K = 5, 10, 20
+// NUM_STATES = 1000, 2000, 5000, 10000, 20000
+
+// 5: 1000, 

@@ -102,6 +102,8 @@ __global__ void warmupKernel() {
     }
 }
 
+// nvcc main.cu collision/cc_2D.cu collision/env_2D.cu planning/construction.cu planning/pprm.cu -o main
+// time each kernel for k=10 and num_states=5000
 
 
 int main(){
@@ -112,7 +114,7 @@ int main(){
     unsigned long seed = 12345UL;
     
     // Set up the environment
-    collision::environment::Env2D env_h = collision::environment::setupEnv1();
+    collision::environment::Env2D env_h = collision::environment::setupEnv2();
     collision::environment::Env2D* env_d;
     planning::setupEnv(env_d, env_h);
 
@@ -134,6 +136,7 @@ int main(){
     cudaEventRecord(start);
 
     // Build the roadmap
+
     planning::buildRoadmap(prm, env_d, seed);
     cudaCheckErrors("Roadmap construction failure");
 

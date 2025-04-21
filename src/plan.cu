@@ -7,6 +7,10 @@ int main(){
     cudaDeviceProp deviceProp;
     cudaGetDeviceProperties(&deviceProp, 0);
     unsigned long seed = 12345UL;
+
+    int numStates = 1000;
+    int k = 5;
+    
     
     // Set up the environment
     collision::environment::Env2D env_h = collision::environment::setupEnv1();

@@ -13,11 +13,19 @@ namespace planning{
               *h_validEdges, *d_validEdges;
     };
 
+    struct Roadmap_d {
+        float *d_states, *d_edges;
+        int   *d_neighbors;
+        bool  *d_validNodes, *d_validEdges;
+    };
+
     void allocateRoadmap(Roadmap &map);
     void freeRoadmap(Roadmap &map);
     void buildRoadmap(Roadmap &prm, collision::environment::Env2D *env_d, unsigned long seed);
 
     void copyToHost(Roadmap &prm);
+
+    // void roadmapToTensors(Roadmap &prm);
 }
 
 

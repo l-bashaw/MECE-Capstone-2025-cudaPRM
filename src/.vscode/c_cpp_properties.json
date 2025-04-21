@@ -5,7 +5,10 @@
             "includePath": [
                 "${workspaceFolder}/**",
                 "/home/lenman/capstone/parallelrm/include",
-                "/usr/local/cuda-12.6/targets/x86_64-linux/include"
+                "/usr/local/cuda-12.6/targets/x86_64-linux/include",
+                "/home/lenman/anaconda3/lib/python3.11/site-packages/torch/include",
+                "/home/lenman/anaconda3/include/python3.11",
+                "/home/lenman/anaconda3/lib/python3.11/site-packages/torch/include/torch/csrc/api/include"
             ],
             "defines": [],
             "compilerPath": "/usr/bin/gcc",
