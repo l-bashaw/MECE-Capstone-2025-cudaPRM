@@ -99,6 +99,19 @@ fig = plt.figure(figsize=(10, 8))
 ax = fig.add_subplot(111, projection='3d')
 
 colors = ['blue', 'orange', 'purple']
+
+def add_sphere(ax, center, radius=0.05, color='cyan', alpha=0.1, resolution=20):
+    """Add a transparent sphere at the given 3D center."""
+    u, v = torch.linspace(0, 2 * math.pi, resolution), torch.linspace(0, math.pi, resolution)
+    u, v = torch.meshgrid(u, v, indexing='ij')
+
+    x = radius * torch.cos(u) * torch.sin(v) + center[0]
+    y = radius * torch.sin(u) * torch.sin(v) + center[1]
+    z = radius * torch.cos(v) + center[2]
+
+    ax.plot_surface(x.cpu().numpy(), y.cpu().numpy(), z.cpu().numpy(), color=color, alpha=alpha, linewidth=0, antialiased=True)
+
+
 for i in range(B):
     rx, ry, rt = robot_states[i].cpu()
     cx, cy, cz = cam_pos_world[i].cpu()
@@ -106,23 +119,92 @@ for i in range(B):
     ax.scatter(rx, ry, 0, color=colors[i], s=80, label=f'Robot {i} Base')
     ax.quiver(rx, ry, 0, 0.4 * math.cos(rt), 0.4 * math.sin(rt), 0, color=colors[i])
     ax.scatter(cx, cy, cz, color=colors[i], marker='^', s=80, label=f'Camera {i}')
+    add_sphere(ax, center=torch.tensor([cx, cy, cz]), radius=0.07, color=colors[i])
     ax.quiver(cx, cy, cz, dx * 0.4, dy * 0.4, dz * 0.4, color=colors[i])
 
+    ax.plot(
+        [cx, object_pos_world[0].cpu().item()],
+        [cy, object_pos_world[1].cpu().item()],
+        [cz, object_pos_world[2].cpu().item()],
+        linestyle='--',
+        color=colors[i],
+        linewidth=1.5,
+        alpha=0.6
+    )
+
+import trimesh
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
+
+def add_cylinder(ax, start, end, radius, color, alpha=0.1, resolution=20):
+    """Add a vertical cylinder from start to end (3D points)"""
+    # Cylinder from trimesh
+    start = start.cpu()
+    end = end.cpu()
+    height = (end - start).norm().item()
+    cylinder = trimesh.creation.cylinder(radius=radius, height=height, sections=resolution)
+    cylinder.apply_translation([0, 0, height / 2])  # shift so bottom is at origin
+    
+
+    # Translate to start point
+    cylinder.apply_translation(start.cpu().numpy())
+
+    # Extract faces for plotting
+    for face in cylinder.faces:
+        tri = cylinder.vertices[face]
+        poly = Poly3DCollection([tri], alpha=alpha, facecolor=color, edgecolor='k', linewidths=0.2)
+        ax.add_collection3d(poly)
+
+# Add vertical cylinder per robot
+for i in range(B):
+    x, y = robot_states[i, 0].item(), robot_states[i, 1].item()
+    z_cam = cam_pos_world[i, 2].item()
+
+    base_pos = torch.tensor([x, y, 0.0], dtype=dtype)
+    top_pos = torch.tensor([x, y, z_cam], dtype=dtype)
+    add_cylinder(ax, base_pos, top_pos, radius=0.1, color=colors[i])
+
+table_center = object_pos_world.cpu().numpy()
+table_width = 0.6   # x dimension
+table_depth = 0.8   # y dimension
+table_height = 0.4  # z dimension (top surface at object height)
+
+# Bottom corner (bar3d needs lower corner and dimensions)
+table_x = table_center[0] - table_width / 2
+table_y = table_center[1] - table_depth / 2
+table_z = 0.0  # table sits on ground
+
+ax.bar3d(
+    table_x, table_y, table_z,
+    table_width, table_depth, table_height,
+    color='saddlebrown', alpha=0.4, shade=True, edgecolor='black'
+) 
 # Object position
 ax.scatter(*object_pos_world.cpu().numpy(), color='red', s=100, label='Target Object')
 
+obstacle_center = object_pos_world.cpu().numpy()
+
+obstacle_width = 0.15
+obstacle_depth = 0.15
+obstacle_height = 0.15  # height above the table
+
+# Base of the obstacle is on top of the table
+obstacle_x = obstacle_center[0] - obstacle_width / 2
+obstacle_y = obstacle_center[1] - obstacle_depth / 2
+obstacle_z = 0.4  # top of table
+
+ax.bar3d(
+    obstacle_x, obstacle_y, obstacle_z,
+    obstacle_width, obstacle_depth, obstacle_height,
+    color='red', alpha=0.15, shade=True, edgecolor='black'
+)
+
 # World frame
-ax.quiver(0, 0, 0, 0.3, 0, 0, color='black')
-ax.quiver(0, 0, 0, 0, 0.3, 0, color='black')
-ax.quiver(0, 0, 0, 0, 0, 0.3, color='black')
-ax.text(0.3, 0, 0, 'X')
-ax.text(0, 0.3, 0, 'Y')
-ax.text(0, 0, 0.3, 'Z')
+
 
 ax.set_xlabel('X')
 ax.set_ylabel('Y')
 ax.set_zlabel('Z')
-ax.set_title('Batch Camera Pan/Tilt Visualization')
+ax.set_title('State Projection Visualization')
 ax.legend()
 plt.tight_layout()
 plt.show()

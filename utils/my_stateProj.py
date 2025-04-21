@@ -29,15 +29,10 @@ object_pos_world_h = torch.tensor([2.5, 3.0, 0.5, 1.0], dtype=dtype, device=devi
 zero_quat = torch.tensor([0.0, 0.0, 0.0, 1.0], dtype=dtype, device=device)
 object_pose_world = torch.cat((object_pos_world_h[0][:3], zero_quat)) # x, y, z, qx, qy, qz, qw`
 
-import time
-for i in range (10):
-    start = time.perf_counter()
-    # Randomly generate robot base poses in the world frame.
-    xy = (torch.rand(B, 2, dtype=dtype, device=device) - 0.5) * 10.0
-    theta = (torch.rand(B, 1, dtype=dtype, device=device) * 2 - 1) * torch.pi
-    robot_states = torch.cat([xy, theta], dim=1)
-    end = time.perf_counter()
-    print("time to generate robot states:", end - start)
+xy = (torch.rand(B, 2, dtype=dtype, device=device) - 0.5) * 10.0
+theta = (torch.rand(B, 1, dtype=dtype, device=device) * 2 - 1) * torch.pi
+robot_states = torch.cat([xy, theta], dim=1)
+   
 
 # Create batched camera base transforms in robot frame (same for all robots)
 T_robot_camera_base = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
@@ -88,18 +83,24 @@ diffs = cam_pose_world - object_pose_world
 
 
 
-# # add 3 dummy values to the end of the tensor
-# diffs = torch.cat((diffs, torch.zeros(B, 3, dtype=dtype, device=device)), dim=1)
-
-# print("diffs", diffs.shape)
-
-# import sys
-# sys.path.append("/home/lenman/capstone/parallelrm/nn")
-
-# import trt_inference as trt
+# add 3 dummy values to the end of the tensor
+# add 0, 1, 0 to the end of the tensor
+diffs = torch.cat((diffs, torch.tensor([0.0, 1.0, 0.0], dtype=dtype, device=device).unsqueeze(0).repeat(B, 1)), dim=1)
 
 
-# model_state_path = "/home/lenman/capstone/parallelrm/resources/models/percscore-nov12-50k.pt"
-# model_trt = trt.build_trt_from_dict(model_state_path, batch_size=B)
-# output = model_trt(diffs)
-# print(output)
+print("diffs", diffs.shape)
+
+import sys
+sys.path.append("/home/lenman/capstone/parallelrm/nn")
+
+import trt_inference as trt
+
+
+model_state_path = "/home/lenman/capstone/parallelrm/resources/models/percscore-nov12-50k.pt"
+model_trt = trt.build_trt_from_dict(model_state_path, batch_size=B)
+output = model_trt(diffs)
+print(output)
+
+# print number of elements with 0.8 > output > 0.5
+
+print("output > 0.5", torch.sum(output > 0.5).item())

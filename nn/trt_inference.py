@@ -1,5 +1,4 @@
 from torch2trt import torch2trt
-import tensorrt as trt
 from torch2trt import TRTModule
 import torch
 import percscorenn
