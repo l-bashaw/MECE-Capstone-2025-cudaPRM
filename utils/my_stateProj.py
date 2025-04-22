@@ -1,12 +1,18 @@
 import torch
-import math
-import time
-import kornia.geometry.conversions as kornia_conv
 import pytorch_kinematics as pk
+import sys
+
+sys.path.append("/home/lb73/cudaPRM/nn")
+import trt_inference as trt
 
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-dtype = torch.float64
+dtype = torch.float32
+
+B = 100000
+
+model_state_path = "/home/lb73/cudaPRM/resources/models/percscore-nov12-50k.pt"
+model_trt = trt.build_trt_from_dict(model_state_path, batch_size=B)
 
 
 ####################################################################################
@@ -22,8 +28,6 @@ cam_rot_robot = torch.tensor(
      [0.0, 1.0, 0.0]], dtype=dtype, device=device
 )
 
-B = 10000
-
 # Specify some object position in the world frame.
 object_pos_world_h = torch.tensor([2.5, 3.0, 0.5, 1.0], dtype=dtype, device=device).unsqueeze(0).expand(B, -1)  # x, y, z, w
 zero_quat = torch.tensor([0.0, 0.0, 0.0, 1.0], dtype=dtype, device=device)
@@ -33,6 +37,8 @@ xy = (torch.rand(B, 2, dtype=dtype, device=device) - 0.5) * 10.0
 theta = (torch.rand(B, 1, dtype=dtype, device=device) * 2 - 1) * torch.pi
 robot_states = torch.cat([xy, theta], dim=1)
    
+
+# --------Start of FK code to time-------------
 
 # Create batched camera base transforms in robot frame (same for all robots)
 T_robot_camera_base = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
@@ -76,31 +82,14 @@ cam_pose_world = torch.cat([cam_pos_world, cam_quat_world], dim=1)
 # Compute differences between camera pose and object pose
 diffs = cam_pose_world - object_pose_world
 
+# --------End of FK code to time-------------
 
 
 
-
-
-
-
-# add 3 dummy values to the end of the tensor
-# add 0, 1, 0 to the end of the tensor
+# --------Start of NN Inference code to time-------------
 diffs = torch.cat((diffs, torch.tensor([0.0, 1.0, 0.0], dtype=dtype, device=device).unsqueeze(0).repeat(B, 1)), dim=1)
-
-
-print("diffs", diffs.shape)
-
-import sys
-sys.path.append("/home/lenman/capstone/parallelrm/nn")
-
-import trt_inference as trt
-
-
-model_state_path = "/home/lenman/capstone/parallelrm/resources/models/percscore-nov12-50k.pt"
-model_trt = trt.build_trt_from_dict(model_state_path, batch_size=B)
 output = model_trt(diffs)
-print(output)
+# --------End of NN Inference code to time-------------
 
-# print number of elements with 0.8 > output > 0.5
 
 print("output > 0.5", torch.sum(output > 0.5).item())

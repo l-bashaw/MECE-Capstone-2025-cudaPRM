@@ -8,7 +8,7 @@ from mpl_toolkits.mplot3d import Axes3D
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dtype = torch.float64
-urdf = "/home/lenman/capstone/parallelrm/resources/robot/stretch/stretch_spherized.urdf"
+urdf = "/home/lb73/cudaPRM/resources/robot/stretch/stretch_spherized.urdf"
 
 # Load robot kinematics chain
 chain = pk.build_serial_chain_from_urdf(open(urdf, mode='rb').read(), "link_head_nav_cam", "base_link")
