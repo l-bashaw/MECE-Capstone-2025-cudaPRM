@@ -2,7 +2,8 @@ import torch
 import pytorch_kinematics as pk
 import sys
 
-sys.path.append("/home/lb73/cudaPRM/nn")
+# sys.path.append("/home/lb73/cudaPRM/nn")
+sys.path.append("/home/lenman/capstone/parallelrm/nn")
 import trt_inference as trt
 
 
@@ -10,8 +11,8 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 dtype = torch.float32
 
 B = 100000
-
-model_state_path = "/home/lb73/cudaPRM/resources/models/percscore-nov12-50k.pt"
+# model_state_path = "/home/lb73/cudaPRM/resources/models/percscore-nov12-50k.pt"
+model_state_path = "/home/lenman/capstone/parallelrm/resources/models/percscore-nov12-50k.pt"
 model_trt = trt.build_trt_from_dict(model_state_path, batch_size=B)
 
 
@@ -68,9 +69,30 @@ obj_in_cam = torch.bmm(T_cam_base_world, object_pos_world_h.unsqueeze(-1)).squee
 dx, dy, dz = obj_in_cam[:, 0], obj_in_cam[:, 1], obj_in_cam[:, 2]
 pan = torch.atan2(dx, dz)
 tilt = torch.atan2(-dy, torch.sqrt(dx**2 + dz**2))
-
+print("pan", pan[0:10])
+print("tilt", tilt[0:10])
 # Compute camera's final pose in world frame
-T_world_cam = torch.bmm(T_world_cam_base, T_robot_camera_base)
+# With this corrected version (assuming you want to incorporate pan/tilt):
+# First create pan/tilt transform
+T_cam_base_pantilt = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
+# Apply rotation for pan (around y-axis)
+T_cam_base_pantilt[:, 0, 0] = torch.cos(pan)
+T_cam_base_pantilt[:, 0, 2] = torch.sin(pan)
+T_cam_base_pantilt[:, 2, 0] = -torch.sin(pan)
+T_cam_base_pantilt[:, 2, 2] = torch.cos(pan)
+# Apply rotation for tilt (around x-axis)
+T_tilt = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
+T_tilt[:, 1, 1] = torch.cos(tilt)
+T_tilt[:, 1, 2] = -torch.sin(tilt)
+T_tilt[:, 2, 1] = torch.sin(tilt)
+T_tilt[:, 2, 2] = torch.cos(tilt)
+# Combine pan and tilt transforms
+T_cam_base_pantilt = torch.bmm(T_cam_base_pantilt, T_tilt)
+# Apply to get final camera transform
+T_world_cam = torch.bmm(T_world_cam_base, T_cam_base_pantilt)
+
+
+
 # Extract camera position and orientation
 cam_pos_world = T_world_cam[:, :3, 3]
 cam_quat_world = pk.matrix_to_quaternion(T_world_cam[:, :3, :3])

@@ -84,8 +84,8 @@ namespace collision::environment{
 
     Env2D setupEnv2(){
         Env2D env;
-        env.numCircles = 4;
-        env.numRectangles = 4;
+        env.numCircles = 8;
+        env.numRectangles = 8;
 
         // Allocate memory for circles and rectangles
         env.circles = new Circle[env.numCircles];
@@ -95,7 +95,7 @@ namespace collision::environment{
         env.circles[0].x = 0.0f;
         env.circles[0].y = 0.0f;
         env.circles[0].r = 1.0f;
-        
+
         env.circles[1].x = 3.0f;
         env.circles[1].y = 3.0f;
         env.circles[1].r = 1.5f;
@@ -107,13 +107,29 @@ namespace collision::environment{
         env.circles[3].x = 5.0f;
         env.circles[3].y = -5.0f;
         env.circles[3].r = 2.0f;
-    
+
+        env.circles[4].x = -4.0f;
+        env.circles[4].y = -7.0f;
+        env.circles[4].r = 1.2f;
+
+        env.circles[5].x = 7.0f;
+        env.circles[5].y = 7.0f;
+        env.circles[5].r = 1.8f;
+
+        env.circles[6].x = -7.0f;
+        env.circles[6].y = 2.0f;
+        env.circles[6].r = 1.3f;
+
+        env.circles[7].x = 2.0f;
+        env.circles[7].y = -2.0f;
+        env.circles[7].r = 0.8f;
+
         // Define rectangular obstacles
         env.rectangles[0].x = 5.0f;
         env.rectangles[0].y = 5.0f;
         env.rectangles[0].w = 2.0f;
         env.rectangles[0].h = 2.0f;
-        
+
         env.rectangles[1].x = -5.0f;
         env.rectangles[1].y = -5.0f;
         env.rectangles[1].w = 2.0f;
@@ -128,7 +144,27 @@ namespace collision::environment{
         env.rectangles[3].y = -2.0f;
         env.rectangles[3].w = 1.5f;
         env.rectangles[3].h = 1.5f;
-    
+
+        env.rectangles[4].x = 0.0f;
+        env.rectangles[4].y = 7.0f;
+        env.rectangles[4].w = 1.5f;
+        env.rectangles[4].h = 1.0f;
+
+        env.rectangles[5].x = -8.0f;
+        env.rectangles[5].y = -2.0f;
+        env.rectangles[5].w = 1.2f;
+        env.rectangles[5].h = 2.5f;
+
+        env.rectangles[6].x = 8.0f;
+        env.rectangles[6].y = 0.0f;
+        env.rectangles[6].w = 1.8f;
+        env.rectangles[6].h = 1.0f;
+
+        env.rectangles[7].x = 0.0f;
+        env.rectangles[7].y = -8.0f;
+        env.rectangles[7].w = 2.2f;
+        env.rectangles[7].h = 1.0f;
+            
         // Define the environment bounds
         env.x_min = -10.0f;
         env.x_max = 10.0f;

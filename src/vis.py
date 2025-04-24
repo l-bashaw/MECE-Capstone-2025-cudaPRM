@@ -84,15 +84,15 @@ def visualize_prm(states, neighbors, valid_nodes, valid_edges, bounds, circles, 
         ax.add_patch(node_circle)
         ax.text(x, y, str(node_idx), ha='center', va='center', color='white', fontsize=8)
     
-    ax.set_title('PRM Visualization')
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
+    ax.set_title('Roadmap in an 8 Obstacle Environment', fontsize=18)
+    ax.set_xlabel('X', fontsize=14)
+    ax.set_ylabel('Y', fontsize=14)
     ax.grid(True)
     
     return fig
 
 def main():
-    filename = "./roadmap.txt"
+    filename = "./roadmapN400K10.txt"
     try:
         states, neighbors, valid_nodes, valid_edges, bounds, circles, rectangles = read_data_from_file(filename)
     except FileNotFoundError:
