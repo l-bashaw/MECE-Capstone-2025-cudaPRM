@@ -92,7 +92,7 @@ def visualize_prm(states, neighbors, valid_nodes, valid_edges, bounds, circles, 
     return fig
 
 def main():
-    filename = "./roadmapN400K10.txt"
+    filename = "./roadmap.txt"
     try:
         states, neighbors, valid_nodes, valid_edges, bounds, circles, rectangles = read_data_from_file(filename)
     except FileNotFoundError:

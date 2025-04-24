@@ -114,7 +114,7 @@ int main(){
     unsigned long seed = 12345UL;
     
     // Set up the environment
-    collision::environment::Env2D env_h = collision::environment::setupEnv2();
+    collision::environment::Env2D env_h = collision::environment::setupEnv1();
     collision::environment::Env2D* env_d;
     planning::setupEnv(env_d, env_h);
 

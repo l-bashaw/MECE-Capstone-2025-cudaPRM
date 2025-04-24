@@ -23,7 +23,7 @@ constexpr float CC_E = 5e-3;
 constexpr float R_ROBOT = 0.3f;
 
 // PRM parameters
-constexpr unsigned int K = 10;   
+constexpr unsigned int K = 5;   
 constexpr unsigned int NUM_STATES = 1000;  
 constexpr unsigned int DIM = 5;
 constexpr unsigned int INTERP_STEPS = 10;
