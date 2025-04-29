@@ -172,7 +172,7 @@ for i in range(B_vis):
     z_cam = cam_pos_world[i, 2].item()
     base_pos = torch.tensor([x, y, 0.0], dtype=dtype)
     top_pos = torch.tensor([x, y, z_cam], dtype=dtype)
-    add_cylinder(ax, base_pos, top_pos, radius=0.1, color=colors[i])
+    add_cylinder(ax, base_pos, top_pos, radius=0.3, color=colors[i])
 
 # Object and table visualization
 table_center = object_pos_world_h[0, :3].cpu().numpy()
@@ -208,15 +208,13 @@ ax.bar3d(
     color='red', alpha=0.15, shade=True, edgecolor='black'
 )
 
-ax.set_xlabel('X')
-ax.set_ylabel('Y')
-ax.set_zlabel('Z')
-ax.set_title('State Projection Visualization')
+ax.set_xlabel('X', fontsize=16)
+ax.set_ylabel('Y', fontsize=16)
+ax.set_zlabel('Z', fontsize=16)
+ax.set_title('State Projection Visualization', fontsize=18)
 
-# Only use the first few labels in the legend (to avoid duplicates)
-handles, labels = ax.get_legend_handles_labels()
-by_label = dict(zip(labels, handles))
-ax.legend(by_label.values(), by_label.keys())
+ax.view_init(elev=15, azim=-107)  # Set the view angle
 
 plt.tight_layout()
+plt.savefig("state_proj_vis.jpg", dpi=1000)
 plt.show()
