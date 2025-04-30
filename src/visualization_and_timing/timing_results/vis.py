@@ -7,7 +7,7 @@ from mpl_toolkits.mplot3d import Axes3D
 from scipy.interpolate import griddata
 
 # Directory containing the timing files
-directory = '.'  # change this to your actual directory
+directory = './timing_results'  # change this to your actual directory
 
 # Regex to extract number of states and K
 pattern = re.compile(r"times_(\d+)_states_(\d+)_K\.txt")
@@ -56,19 +56,21 @@ fig = plt.figure(figsize=(12, 8))
 ax = fig.add_subplot(111, projection='3d')
 surf = ax.plot_surface(K_fine, S_fine, Z_fine, cmap='viridis', edgecolor='none', alpha=0.95)
 
-ax.set_xlabel("Number of Nearest Neighbors", fontsize=14)
-ax.set_ylabel("Number of States", fontsize=14)
-ax.set_zlabel("Time (ms)", fontsize=14)
-ax.set_title("Graph Generation Time for a 4 Obstacle Environment", fontsize=18)
+ax.set_xlabel("Number of Nearest Neighbors", fontsize=16)
+ax.set_ylabel("Number of States", fontsize=16)
+ax.set_zlabel("Time (ms)", fontsize=16)
+#ax.set_title("Graph Generation Time for a 4 Obstacle Environment", fontsize=18)
 fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10)
 
 # give more spacing between state axis label and ticks
 ax.yaxis.set_tick_params(pad=0)
+ax.set_zlim(0, 9)
 
-# Impose strict limits on z-axis
-# ax.set_zlim(0, 9)
+# set azimuth and elevation
+ax.view_init(elev=14, azim=-147)
 
 plt.tight_layout()
+plt.savefig("time_surface.jpg", dpi=1000)
 plt.show()
 
 # # Plot 2D Line Plot: Time vs Number of States (Shading with K)
