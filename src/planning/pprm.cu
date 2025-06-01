@@ -93,10 +93,10 @@ namespace planning {
 
 
     void allocateRoadmap(Roadmap &map) {
-        size_t size_states    = NUM_STATES * DIM * sizeof(float);
-        size_t size_edges     = NUM_STATES * DIM * K * INTERP_STEPS * sizeof(float);
-        size_t size_neighbors = NUM_STATES * K * sizeof(int);
-        size_t size_validNodes     = NUM_STATES * sizeof(bool);
+        size_t size_states     = NUM_STATES * DIM * sizeof(float);
+        size_t size_edges      = NUM_STATES * DIM * K * INTERP_STEPS * sizeof(float);
+        size_t size_neighbors  = NUM_STATES * K * sizeof(int);
+        size_t size_validNodes = NUM_STATES * sizeof(bool);
         size_t size_validEdges = NUM_STATES * K * sizeof(bool);
 
         cudaMallocHost(&map.h_states, size_states);
@@ -158,7 +158,7 @@ namespace planning {
         int blocksize = 256;
         int gridsize = (NUM_STATES + blocksize - 1) / blocksize;
         int gridsize1 = (NUM_STATES * K + blocksize - 1) / blocksize;
-        prm::construction::generateStates<<<gridsize, blocksize>>>(prm.d_states, seed);
+        prm::construction::generateStates<<<gridsize, blocksize>>>(prm.d_states, prm.d_validNodes, *env_d, seed);
         cudaDeviceSynchronize();
         cudaCheckErrors("Stategen kernel launch failure");
 
@@ -170,9 +170,9 @@ namespace planning {
         cudaDeviceSynchronize();
         cudaCheckErrors("Interpolation kernel launch failure");
 
-        collision::environment::nodesInCollision<<<gridsize, blocksize>>>(prm.d_states, prm.d_validNodes, *env_d);
-        cudaDeviceSynchronize();
-        cudaCheckErrors("Collision kernel launch failure");
+        // collision::environment::nodesInCollision<<<gridsize, blocksize>>>(prm.d_states, prm.d_validNodes, *env_d);
+        // cudaDeviceSynchronize();
+        // cudaCheckErrors("Collision kernel launch failure");
 
         collision::environment::edgesInCollision<<<gridsize1, blocksize>>>(prm.d_edges, prm.d_validEdges, *env_d);
         cudaDeviceSynchronize();

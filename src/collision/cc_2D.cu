@@ -33,33 +33,33 @@ namespace collision::environment{
 
     // Kernel to check if a state is in collision with the environment
     // Each thread checks collision of one state with the entire environment.
-    __global__ void nodesInCollision(float* states, bool* valid, Env2D &env)
-    {
-        int idx = blockIdx.x * blockDim.x + threadIdx.x;
-        if (idx >= NUM_STATES) return;
+    // __global__ void nodesInCollision(float* states, bool* valid, Env2D &env)
+    // {
+    //     int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    //     if (idx >= NUM_STATES) return;
 
-        // Load state into registers
-        float x = states[idx * 5 + 0];       // x position
-        float y = states[idx * 5 + 1];       // y position
-        // float theta = states[idx * 5 + 2];   // theta
+    //     // Load state into registers
+    //     float x = states[idx * 5 + 0];       // x position
+    //     float y = states[idx * 5 + 1];       // y position
+    //     // float theta = states[idx * 5 + 2];   // theta
 
-        // Check circular obstacles for collisions
-        for (int i = 0; i < env.numCircles; i++){
-            if (inCollisionCircle(x, y, env.circles[i])){
-                valid[idx] = false;
-                return;
-            }
-        }
+    //     // Check circular obstacles for collisions
+    //     for (int i = 0; i < env.numCircles; i++){
+    //         if (inCollisionCircle(x, y, env.circles[i])){
+    //             valid[idx] = false;
+    //             return;
+    //         }
+    //     }
 
-        // Check rectangular obstacles for collisions
-        for (int i = 0; i < env.numRectangles; i++){
-            if (inCollisionRectangle(x, y, env.rectangles[i])){
-                valid[idx] = false;
-                return;
-            }
-        }
-        valid[idx] = true;
-    }
+    //     // Check rectangular obstacles for collisions
+    //     for (int i = 0; i < env.numRectangles; i++){
+    //         if (inCollisionRectangle(x, y, env.rectangles[i])){
+    //             valid[idx] = false;
+    //             return;
+    //         }
+    //     }
+    //     valid[idx] = true;
+    // }
 
     
     // Each thread checks collision of one edge with the entire environment.

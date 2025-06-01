@@ -1,4 +1,5 @@
 #pragma once
+#include "env_2D.cuh"
 
 namespace collision::environment{
     __device__ bool inCollisionCircle(
@@ -13,11 +14,11 @@ namespace collision::environment{
         Rectangle &rect
     );
 
-    __global__ void nodesInCollision(
-        float* states, 
-        bool* valid, 
-        Env2D &env
-    );
+    // __global__ void nodesInCollision(
+    //     float* states, 
+    //     bool* valid, 
+    //     Env2D &env
+    // );
 
     __global__ void edgesInCollision(
         float* edges, 

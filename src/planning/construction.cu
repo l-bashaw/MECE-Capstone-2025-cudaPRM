@@ -2,26 +2,99 @@
 #include <float.h>
 #include "../params/hyperparameters.cuh"
 #include "construction.cuh"
+#include "../collision/cc_2D.cuh"
+#include "../collision/env_2D.cuh"
 
 
 namespace prm::construction{
 
-    __global__ void generateStates(float* states, unsigned long seed) {
+    // __global__ void generateStates(float* states, unsigned long seed) {
+    //     int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    //     if (idx >= NUM_STATES) return;
+    
+    //     // Init RNG
+    //     curandStateXORWOW state;
+    //     curand_init(seed, idx, 0, &state);
+    //     int base = idx * 5;
+    
+    //     // Generate random values in the range [LOWER_BOUNDS, UPPER_BOUNDS)
+    //     states[base + 0] = LOWER_BOUNDS[0] + (UPPER_BOUNDS[0]-LOWER_BOUNDS[0]) * curand_uniform(&state); 
+    //     states[base + 1] = LOWER_BOUNDS[1] + (UPPER_BOUNDS[1]-LOWER_BOUNDS[1]) * curand_uniform(&state);
+    //     states[base + 2] = LOWER_BOUNDS[2] + (UPPER_BOUNDS[2]-LOWER_BOUNDS[2]) * curand_uniform(&state);
+    //     states[base + 3] = 0.0f;   // Leave camera pan and tilt angles as 0
+    //     states[base + 4] = 0.0f;
+    // }
+
+    __global__ void generateStates(
+        float* states, 
+        bool* valid, 
+        collision::environment::Env2D &env, 
+        unsigned long seed
+    ) {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
         if (idx >= NUM_STATES) return;
-    
-        // Init RNG
+
+        // Init RNG with different seed for each iteration
         curandStateXORWOW state;
         curand_init(seed, idx, 0, &state);
-        int base = idx * 5;
-    
-        // Generate random values in the range [LOWER_BOUNDS, UPPER_BOUNDS)
-        states[base + 0] = LOWER_BOUNDS[0] + (UPPER_BOUNDS[0]-LOWER_BOUNDS[0]) * curand_uniform(&state); 
-        states[base + 1] = LOWER_BOUNDS[1] + (UPPER_BOUNDS[1]-LOWER_BOUNDS[1]) * curand_uniform(&state);
-        states[base + 2] = LOWER_BOUNDS[2] + (UPPER_BOUNDS[2]-LOWER_BOUNDS[2]) * curand_uniform(&state);
-        states[base + 3] = 0.0f;   // Leave camera pan and tilt angles as 0
+
+        //curand_init(seed, idx + iteration * NUM_STATES, 0, &state);
+        
+        int base = idx * DIM;
+        const int max_attempts = 50;
+        bool collision_free = false;
+        float x, y, theta;
+        
+        for (int attempt = 0; attempt < max_attempts; attempt++) {
+            // Generate new random state
+            x = LOWER_BOUNDS[0] + (UPPER_BOUNDS[0]-LOWER_BOUNDS[0]) * curand_uniform(&state);
+            y = LOWER_BOUNDS[1] + (UPPER_BOUNDS[1]-LOWER_BOUNDS[1]) * curand_uniform(&state);
+            theta = LOWER_BOUNDS[2] + (UPPER_BOUNDS[2]-LOWER_BOUNDS[2]) * curand_uniform(&state);
+            
+            // Check if this new state is collision-free
+            collision_free = true;
+            
+            // Check circular obstacles
+            for (int i = 0; i < env.numCircles && collision_free; i++) {
+                if (collision::environment::inCollisionCircle(x, y, env.circles[i])) {
+                    collision_free = false;
+                    break;
+                }
+            }
+
+            if (!collision_free) continue; // If collision with circles, skip to next attempt
+            
+            // Check rectangular obstacles
+        
+            for (int i = 0; i < env.numRectangles && collision_free; i++) {
+                if (collision::environment::inCollisionRectangle(x, y, env.rectangles[i])) {
+                    collision_free = false;
+                    break;
+                }
+            }
+            
+
+            if (!collision_free) continue; // If collision with rectangles, skip to next attempt
+
+            // If we reach here, the state is valid, so we store it and return
+            states[base + 0] = x;
+            states[base + 1] = y;
+            states[base + 2] = theta;
+            states[base + 3] = 0.0f;
+            states[base + 4] = 0.0f;
+            valid[idx] = true;
+            return;
+            
+        }
+        // If we reach here in regeneration rounds, the state remains invalid and we store it
+        states[base + 0] = x;
+        states[base + 1] = y;
+        states[base + 2] = theta;
+        states[base + 3] = 0.0f;
         states[base + 4] = 0.0f;
+        valid[idx] = false;
     }
+
 
 
     __global__ void findNeighbors(
