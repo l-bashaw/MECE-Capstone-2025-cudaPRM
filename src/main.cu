@@ -1,6 +1,10 @@
 #include "params/hyperparameters.cuh"
 #include "planning/pprm.cuh"
 
+// Define the constant arrays
+__constant__ float LOWER_BOUNDS[5] = { -10.0f, -10.0f, 0.0f  , 0.0, 0.0  };  // x, y, theta
+__constant__ float UPPER_BOUNDS[5] = { 10.0f ,  10.0f, 2*M_PI, 0.0, 0.0  };
+
 void saveResults(planning::Roadmap &prm, collision::environment::Env2D &env_h){
     FILE *file = fopen("roadmap.txt", "w");
     if (file == NULL) {
@@ -114,7 +118,7 @@ int main(){
     unsigned long seed = 12345UL;
     
     // Set up the environment
-    collision::environment::Env2D env_h = collision::environment::setupEnv1();
+    collision::environment::Env2D env_h = collision::environment::setupEnv2();
     collision::environment::Env2D* env_d;
     planning::setupEnv(env_d, env_h);
 

@@ -3,7 +3,7 @@
 #include "../params/hyperparameters.cuh"
 #include "construction.cuh"
 #include "../collision/cc_2D.cuh"
-#include "../collision/env_2D.cuh"
+
 
 
 namespace prm::construction{
