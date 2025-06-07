@@ -1,6 +1,7 @@
 #include "params/hyperparameters.cuh"
 #include "planning/pprm.cuh"
 
+
 int main(){
 
     // Set up the CUDA device and RNG seed

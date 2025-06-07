@@ -6,7 +6,7 @@ namespace collision::environment{
 
     // Device functions to check for collisions between a circular robot and a circle or rectangle
     // These are used in the collision checking kernel
-    __device__ bool inCollisionCircle(
+    __device__ inline bool inCollisionCircle(
         float x,  // Location of robot
         float y, 
         Circle &c
@@ -16,7 +16,7 @@ namespace collision::environment{
         return distance_sq <= (R_ROBOT + c.r) * (R_ROBOT + c.r) + CC_E;
     }
 
-    __device__ bool inCollisionRectangle(
+    __device__ inline bool inCollisionRectangle(
         float x,  // Location of robot
         float y,
         Rectangle &rect)
