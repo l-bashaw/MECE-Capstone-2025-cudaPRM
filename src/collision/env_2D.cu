@@ -179,59 +179,5 @@ namespace collision::environment{
         return env;
     }
 
-
-    
-    // void buildEnvFromTensors(
-    //     Env2D_d &env,
-    //     torch::Tensor circles,     // (x, y, r)
-    //     torch::Tensor rectangles,  // (x, y, w, h)
-    //     torch::Tensor bounds       // (x_min, x_max, y_min, y_max)
-    // ){
-    //     // Check if the input tensors are valid
-    //     // Assume we have N circles and M rectangles, laid out as follows: 
-    //     // circles: (N, 3) 
-    //     // rectangles: (M, 4)
-    //     TORCH_CHECK(circles.dtype() == torch::kFloat32, "Circles tensor must be of type float32");
-    //     TORCH_CHECK(rectangles.dtype() == torch::kFloat32, "Rectangles tensor must be of type float32");
-    //     TORCH_CHECK(circles.dim() == 2 && circles.size(1) == 3, "Circles tensor must be of shape (N, 3)");   
-    //     TORCH_CHECK(rectangles.dim() == 2 && rectangles.size(1) == 4, "Rectangles tensor must be of shape (M, 4)");
-    //     TORCH_CHECK(circles.device().is_cuda(), "Circles tensor must be on CUDA device");
-    //     TORCH_CHECK(rectangles.device().is_cuda(), "Rectangles tensor must be on CUDA device");
-    //     TORCH_CHECK(bounds.dtype() == torch::kFloat32, "Bounds tensor must be of type float32");
-    //     TORCH_CHECK(bounds.dim() == 1 && bounds.size(0) == 4, "Bounds tensor must be of shape (4,)");
-    //     TORCH_CHECK(bounds.device().is_cuda(), "Bounds tensor must be on CUDA device");
-
-    //     // Create an Env2D object and populate it with our tensors from python
-    //     env.numCircles = circles.size(0);
-    //     env.numRectangles = rectangles.size(0);
-    //     env.x_min = bounds[0].item<float>();
-    //     env.x_max = bounds[1].item<float>();
-    //     env.y_min = bounds[2].item<float>();
-    //     env.y_max = bounds[3].item<float>();
-        
-    //     // Allocate memory for circles on the device and copy the data
-    //     cudaMalloc(&(env.circles), env.numCircles * sizeof(Circle));
-    //     cudaMemcpy(
-    //         env.circles, 
-    //         circles.data_ptr<Circle>(), 
-    //         env.numCircles * sizeof(Circle), 
-    //         cudaMemcpyDeviceToDevice
-    //     );
-
-    //     // Allocate memory for rectangles on the device and copy the data
-    //     cudaMalloc(&(env.rectangles), env.numRectangles * sizeof(Rectangle));
-    //     cudaMemcpy(
-    //         env.rectangles, 
-    //         rectangles.data_ptr<Rectangle>(), 
-    //         env.numRectangles * sizeof(Rectangle), 
-    //         cudaMemcpyDeviceToDevice
-    //     );
-
-        // // Ensure that the environment is valid before returning
-        // if (isValidEnvironment(env) == false){
-        //     printf("Invalid environment parameters\n");
-        //     exit(1);
-        // }
-    // }
   
 }

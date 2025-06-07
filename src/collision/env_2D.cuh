@@ -28,34 +28,7 @@ namespace collision::environment{
         unsigned int numCircles;
         unsigned int numRectangles;
 
-        Env2D() = default;
-
-        bool ownsMemory = false;
-        ~Env2D() { 
-            if (ownsMemory){
-                delete[] circles;
-                delete[] rectangles;
-            }
-        }
-    };
-
-    struct Env2D_d{
-        float x_min, x_max, y_min, y_max;
-
-        Circle *circles = nullptr;
-        Rectangle *rectangles = nullptr;
-
-        unsigned int numCircles = 0;
-        unsigned int numRectangles = 0;
-
-        ~Env2D_d() { 
-            if (circles != nullptr){
-                cudaFree(circles);
-            }
-            if (rectangles != nullptr){
-                cudaFree(rectangles);
-            }
-        }
+        Env2D() : circles(nullptr), rectangles(nullptr), numCircles(0), numRectangles(0) {}
     };
 
     // void buildEnvFromTensors(

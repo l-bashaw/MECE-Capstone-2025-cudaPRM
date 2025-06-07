@@ -141,7 +141,7 @@ int main(){
 
     // Build the roadmap
 
-    planning::buildRoadmap(prm, env_d, seed);
+    planning::buildRoadmap(prm, env_d, seed);  // TODO: fix Bounds/seed
     cudaCheckErrors("Roadmap construction failure");
 
     // Stop timing and calculate elapsed time

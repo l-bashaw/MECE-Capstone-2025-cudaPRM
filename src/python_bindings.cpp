@@ -23,61 +23,45 @@ namespace prm_bindings {
         return result;
     }
 
-    collision::environment::Env2D tensor_to_env2d(
-        torch::Tensor circles, 
+    collision::environment::Env2D* tensor_to_env2d_device(
+        torch::Tensor circles,
         torch::Tensor rectangles
     ) {
         TORCH_CHECK(circles.device().is_cuda(), "circles must be on CUDA device");
         TORCH_CHECK(rectangles.device().is_cuda(), "rectangles must be on CUDA device");
+        TORCH_CHECK(circles.is_contiguous(), "circles must be contiguous");
+        TORCH_CHECK(rectangles.is_contiguous(), "rectangles must be contiguous");
         
-        collision::environment::Env2D env;
-        env.numCircles = circles.size(0);
-        env.numRectangles = rectangles.size(0);
+        // Allocate the env struct on device
+        collision::environment::Env2D* env_d;
+        cudaMalloc(&env_d, sizeof(collision::environment::Env2D));
         
-        // Allocate device memory for obstacles
-        if (env.numCircles > 0) {
-            cudaMalloc(&env.circles, env.numCircles * sizeof(collision::environment::Circle));
-            
-            // Convert tensor data to Circle structs
-            auto circles_cpu = circles.cpu();
-            std::vector<collision::environment::Circle> circle_data(env.numCircles);
-            
-            for (unsigned int i = 0; i < env.numCircles; i++) {
-                circle_data[i].x = circles_cpu[i][0].item<float>();
-                circle_data[i].y = circles_cpu[i][1].item<float>();
-                circle_data[i].r = circles_cpu[i][2].item<float>();
-            }
-            
-            cudaMemcpy(env.circles, circle_data.data(), 
-                      env.numCircles * sizeof(collision::environment::Circle), 
-                      cudaMemcpyHostToDevice);
-        } else {
-            env.circles = nullptr;
+        // Create host copy to populate
+        collision::environment::Env2D env_host = {};
+        env_host.numCircles = circles.size(0);
+        env_host.numRectangles = rectangles.size(0);
+        
+        // Allocate and copy circles
+        if (env_host.numCircles > 0) {
+            cudaMalloc(&env_host.circles, env_host.numCircles * sizeof(collision::environment::Circle));
+            cudaMemcpy(env_host.circles, circles.data_ptr<float>(),
+                    env_host.numCircles * sizeof(collision::environment::Circle),
+                    cudaMemcpyDeviceToDevice);
         }
         
-        if (env.numRectangles > 0) {
-            cudaMalloc(&env.rectangles, env.numRectangles * sizeof(collision::environment::Rectangle));
-            
-            // Convert tensor data to Rectangle structs
-            auto rectangles_cpu = rectangles.cpu();
-            std::vector<collision::environment::Rectangle> rect_data(env.numRectangles);
-            
-            for (unsigned int i = 0; i < env.numRectangles; i++) {
-                rect_data[i].x = rectangles_cpu[i][0].item<float>();
-                rect_data[i].y = rectangles_cpu[i][1].item<float>();
-                rect_data[i].w = rectangles_cpu[i][2].item<float>();
-                rect_data[i].h = rectangles_cpu[i][3].item<float>();
-            }
-            
-            cudaMemcpy(env.rectangles, rect_data.data(), 
-                      env.numRectangles * sizeof(collision::environment::Rectangle), 
-                      cudaMemcpyHostToDevice);
-        } else {
-            env.rectangles = nullptr;
+        // Allocate and copy rectangles  
+        if (env_host.numRectangles > 0) {
+            cudaMalloc(&env_host.rectangles, env_host.numRectangles * sizeof(collision::environment::Rectangle));
+            cudaMemcpy(env_host.rectangles, rectangles.data_ptr<float>(),
+                    env_host.numRectangles * sizeof(collision::environment::Rectangle),
+                    cudaMemcpyDeviceToDevice);
         }
+        
+        // Copy the populated struct to device
+        cudaMemcpy(env_d, &env_host, sizeof(collision::environment::Env2D), cudaMemcpyHostToDevice);
         
         cudaCheckErrors("Failed to setup environment");
-        return env;
+        return env_d;
     }
 
     std::vector<torch::Tensor> roadmap_to_tensors(const planning::Roadmap& prm) {
@@ -112,29 +96,25 @@ namespace prm_bindings {
         // Convert bounds to struct
         Bounds bounds_struct = tensor_to_bounds(bounds);
         
-        // Convert tensors to environment
-        auto env_h = tensor_to_env2d(circles, rectangles);
-        collision::environment::Env2D* env_d;
-        planning::setupEnv(env_d, env_h);
+        // Create environment directly on device - no setupEnv needed!
+        auto env_d = tensor_to_env2d_device(circles, rectangles);
         
-        // Allocate and build roadmap (you'll need to update this to pass bounds)
+        // Build roadmap
         planning::Roadmap prm;
         planning::allocateRoadmap(prm);
-        planning::buildRoadmap(prm, env_d, bounds_struct, seed);  // Pass bounds_struct
+        planning::buildRoadmap(prm, env_d, bounds_struct, seed);
         cudaCheckErrors("Roadmap construction failure");
-        
-        // Copy results to host for tensor conversion
-        planning::copyToHost(prm);
         
         // Convert roadmap to tensors
         auto result = roadmap_to_tensors(prm);
         
         // Cleanup
         planning::freeRoadmap(prm);
-        planning::cleanupEnv(env_d, env_h);
+        planning::cleanupEnv(env_d);  
         
         return result;
     }
+
 }
 
 // Pybind11 module definition

@@ -1,6 +1,6 @@
 # ninja log v5
-0	1443	1749267594938297343	/home/lenman/capstone/parallelrm/build/temp.linux-x86_64-cpython-311/src/collision/env_2D.o	4977e649e25ddb78
-1	1511	1749267595001297342	/home/lenman/capstone/parallelrm/build/temp.linux-x86_64-cpython-311/src/planning/pprm.o	4463dd04bd4e0dc2
-0	1569	1749267595055297339	/home/lenman/capstone/parallelrm/build/temp.linux-x86_64-cpython-311/src/collision/cc_2D.o	a9015501a66041b
-0	2367	1749267595856297325	/home/lenman/capstone/parallelrm/build/temp.linux-x86_64-cpython-311/src/planning/construction.o	26c85642152fd05c
-1	15156	1749267608636297089	/home/lenman/capstone/parallelrm/build/temp.linux-x86_64-cpython-311/src/python_bindings.o	c20909f3dda506c4
+1	2310	1749316414744604201	/home/lenman/capstone/parallelrm/build/temp.linux-x86_64-cpython-311/src/collision/env_2D.o	4977e649e25ddb78
+2	2434	1749316414863770862	/home/lenman/capstone/parallelrm/build/temp.linux-x86_64-cpython-311/src/planning/pprm.o	4463dd04bd4e0dc2
+1	2447	1749316414891270862	/home/lenman/capstone/parallelrm/build/temp.linux-x86_64-cpython-311/src/collision/cc_2D.o	a9015501a66041b
+2	3500	1749316415936270844	/home/lenman/capstone/parallelrm/build/temp.linux-x86_64-cpython-311/src/planning/construction.o	26c85642152fd05c
+2	23139	1749316435574835065	/home/lenman/capstone/parallelrm/build/temp.linux-x86_64-cpython-311/src/python_bindings.o	c20909f3dda506c4

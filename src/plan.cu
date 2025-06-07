@@ -23,7 +23,7 @@ int main(){
     planning::allocateRoadmap(prm);
 
     // Build the roadmap
-    planning::buildRoadmap(prm, env_d, seed);
+    planning::buildRoadmap(prm, env_d, seed); // TODO: fix Bounds/seed
     cudaCheckErrors("Roadmap construction failure");
 
     // Copy results back to host

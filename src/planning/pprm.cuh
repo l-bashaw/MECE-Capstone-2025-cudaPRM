@@ -4,8 +4,8 @@
 
 namespace planning{
     void setupEnv(collision::environment::Env2D *&env_d, const collision::environment::Env2D &env_h);
-    void cleanupEnv(collision::environment::Env2D *env_d, const collision::environment::Env2D &env_h);
-
+    void cleanupEnv(collision::environment::Env2D *env_d);
+    
     struct Roadmap {
         float *h_states, *d_states;
         float *h_edges,  *d_edges;

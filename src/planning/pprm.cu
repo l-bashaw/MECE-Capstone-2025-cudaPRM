@@ -72,25 +72,25 @@ namespace planning {
         } // Environment setup on device.
     }
 
-    void cleanupEnv(collision::environment::Env2D *env_d, const collision::environment::Env2D &env_h){
+    void cleanupEnv(collision::environment::Env2D *env_d) {
+        // Copy the entire env structure from device to host to get pointers and counts
+        collision::environment::Env2D env_host;
+        cudaMemcpy(&env_host, env_d, sizeof(collision::environment::Env2D), cudaMemcpyDeviceToHost);
+        cudaCheckErrors("cudaMemcpy env struct failure");
         
-        collision::environment::Circle *d_circles = nullptr;
-        collision::environment::Rectangle *d_rectangles = nullptr;
-
-        if(env_h.numCircles > 0){
-            cudaMemcpy(&d_circles, &(env_d->circles), sizeof(collision::environment::Circle*), cudaMemcpyDeviceToHost);
-            cudaCheckErrors("cudaMemcpy failure");
-            cudaFree(d_circles);
-            cudaCheckErrors("cudaFree failure");
+        // Free the arrays using the pointers from the host copy
+        if(env_host.numCircles > 0) {
+            cudaFree(env_host.circles);
+            cudaCheckErrors("cudaFree circles failure");
         }
-        if(env_h.numRectangles > 0){
-            cudaMemcpy(&d_rectangles, &(env_d->rectangles), sizeof(collision::environment::Rectangle*), cudaMemcpyDeviceToHost);
-            cudaCheckErrors("cudaMemcpy failure");
-            cudaFree(d_rectangles);
-            cudaCheckErrors("cudaFree failure");
-        }  
+        if(env_host.numRectangles > 0) {
+            cudaFree(env_host.rectangles);
+            cudaCheckErrors("cudaFree rectangles failure");
+        }
+        
+        // Free the env struct itself
         cudaFree(env_d);
-        cudaCheckErrors("cudaFree failure");
+        cudaCheckErrors("cudaFree env_d failure");
     }
 
 
