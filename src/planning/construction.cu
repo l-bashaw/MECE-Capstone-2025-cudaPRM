@@ -29,6 +29,7 @@ namespace prm::construction{
         float* states, 
         bool* valid, 
         collision::environment::Env2D &env, 
+        Bounds bounds,
         unsigned long seed
     ) {
         int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -47,10 +48,10 @@ namespace prm::construction{
         
         for (int attempt = 0; attempt < max_attempts; attempt++) {
             // Generate new random state
-            x = LOWER_BOUNDS[0] + (UPPER_BOUNDS[0]-LOWER_BOUNDS[0]) * curand_uniform(&state);
-            y = LOWER_BOUNDS[1] + (UPPER_BOUNDS[1]-LOWER_BOUNDS[1]) * curand_uniform(&state);
-            theta = LOWER_BOUNDS[2] + (UPPER_BOUNDS[2]-LOWER_BOUNDS[2]) * curand_uniform(&state);
-            
+            x = bounds.lower[0] + (bounds.upper[0]-bounds.lower[0]) * curand_uniform(&state);
+            y = bounds.lower[1] + (bounds.upper[1]-bounds.lower[1]) * curand_uniform(&state);
+            theta = bounds.lower[2] + (bounds.upper[2]-bounds.lower[2]) * curand_uniform(&state);
+
             // Check if this new state is collision-free
             collision_free = true;
             

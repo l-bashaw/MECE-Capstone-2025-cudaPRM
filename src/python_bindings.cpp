@@ -8,24 +8,19 @@
 
 namespace prm_bindings {
 
-    void setup_bounds(torch::Tensor bounds) {
-        // bounds should be [2, 5] tensor with lower and upper bounds
+    Bounds tensor_to_bounds(torch::Tensor bounds) {
         TORCH_CHECK(bounds.dim() == 2 && bounds.size(0) == 2 && bounds.size(1) == 5, 
                    "bounds must be [2, 5] tensor");
-        TORCH_CHECK(bounds.device().is_cuda(), "bounds must be on CUDA device");
         
         auto bounds_cpu = bounds.cpu();
-        float lower_bounds[5], upper_bounds[5];
+        Bounds result;
         
         for(int i = 0; i < 5; i++) {
-            lower_bounds[i] = bounds_cpu[0][i].item<float>();
-            upper_bounds[i] = bounds_cpu[1][i].item<float>();
+            result.lower[i] = bounds_cpu[0][i].item<float>();
+            result.upper[i] = bounds_cpu[1][i].item<float>();
         }
         
-        // Copy to constant memory
-        cudaMemcpyToSymbol(LOWER_BOUNDS, lower_bounds, 5 * sizeof(float));
-        cudaMemcpyToSymbol(UPPER_BOUNDS, upper_bounds, 5 * sizeof(float));
-        cudaCheckErrors("Failed to copy bounds to device");
+        return result;
     }
 
     collision::environment::Env2D tensor_to_env2d(
@@ -47,7 +42,7 @@ namespace prm_bindings {
             auto circles_cpu = circles.cpu();
             std::vector<collision::environment::Circle> circle_data(env.numCircles);
             
-            for (int i = 0; i < env.numCircles; i++) {
+            for (unsigned int i = 0; i < env.numCircles; i++) {
                 circle_data[i].x = circles_cpu[i][0].item<float>();
                 circle_data[i].y = circles_cpu[i][1].item<float>();
                 circle_data[i].r = circles_cpu[i][2].item<float>();
@@ -67,7 +62,7 @@ namespace prm_bindings {
             auto rectangles_cpu = rectangles.cpu();
             std::vector<collision::environment::Rectangle> rect_data(env.numRectangles);
             
-            for (int i = 0; i < env.numRectangles; i++) {
+            for (unsigned int i = 0; i < env.numRectangles; i++) {
                 rect_data[i].x = rectangles_cpu[i][0].item<float>();
                 rect_data[i].y = rectangles_cpu[i][1].item<float>();
                 rect_data[i].w = rectangles_cpu[i][2].item<float>();
@@ -101,31 +96,31 @@ namespace prm_bindings {
     }
 
     std::vector<torch::Tensor> build_prm(
-        torch::Tensor circles,
-        torch::Tensor rectangles, 
-        torch::Tensor bounds,
-        int num_states,
-        int k,
-        unsigned long seed
-    ) {
+            torch::Tensor circles,
+            torch::Tensor rectangles, 
+            torch::Tensor bounds,
+            int num_states,
+            int k,
+            unsigned long seed
+        ) {
         // Validate inputs
         TORCH_CHECK(circles.dim() == 2 && circles.size(1) == 3, 
                    "circles must be [N, 3] tensor");
         TORCH_CHECK(rectangles.dim() == 2 && rectangles.size(1) == 4, 
                    "rectangles must be [N, 4] tensor");
         
-        // Setup bounds in constant memory
-        setup_bounds(bounds);
+        // Convert bounds to struct
+        Bounds bounds_struct = tensor_to_bounds(bounds);
         
         // Convert tensors to environment
         auto env_h = tensor_to_env2d(circles, rectangles);
         collision::environment::Env2D* env_d;
         planning::setupEnv(env_d, env_h);
         
-        // Allocate and build roadmap
+        // Allocate and build roadmap (you'll need to update this to pass bounds)
         planning::Roadmap prm;
         planning::allocateRoadmap(prm);
-        planning::buildRoadmap(prm, env_d, seed);
+        planning::buildRoadmap(prm, env_d, bounds_struct, seed);  // Pass bounds_struct
         cudaCheckErrors("Roadmap construction failure");
         
         // Copy results to host for tensor conversion

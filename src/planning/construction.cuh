@@ -14,6 +14,7 @@ namespace prm::construction
         float* states, 
         bool* valid, 
         collision::environment::Env2D &env, 
+        Bounds bounds,
         unsigned long seed
     );
 

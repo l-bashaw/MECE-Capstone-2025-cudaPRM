@@ -1,4 +1,5 @@
 #pragma once
+#include "../params/hyperparameters.cuh"
 #include "../collision/env_2D.cuh"
 
 namespace planning{
@@ -21,7 +22,7 @@ namespace planning{
 
     void allocateRoadmap(Roadmap &map);
     void freeRoadmap(Roadmap &map);
-    void buildRoadmap(Roadmap &prm, collision::environment::Env2D *env_d, unsigned long seed);
+    void buildRoadmap(Roadmap &prm, collision::environment::Env2D *env_d, Bounds bounds, unsigned long seed);
 
     void copyToHost(Roadmap &prm);
 

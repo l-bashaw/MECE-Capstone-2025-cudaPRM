@@ -13,8 +13,7 @@ ext_modules = [
         name='parallelrm_cuda',
         sources=[
             'src/python_bindings.cpp',
-            'src/params/hyperparameters.cu',
-            #'src/collision/cc_2D.cu',
+            'src/collision/cc_2D.cu', 
             'src/collision/env_2D.cu',
             'src/planning/construction.cu',
             'src/planning/pprm.cu',
@@ -38,17 +37,13 @@ ext_modules = [
                 '--expt-relaxed-constexpr',
                 '--expt-extended-lambda',
                 '-std=c++17',
-                '-rdc=true',
+                #'-rdc=true',
                 '-DTORCH_EXTENSION_NAME=parallelrm_cuda',
                 '-DWITH_CUDA',
                 '--compiler-options=-fPIC'
             ]
         },
-        extra_link_args=[
-            '-lcudadevrt',  # Device runtime library for RDC
-            '-lcudart',     # CUDA runtime
-        ],
-        libraries=['cudart', 'curand', 'cudadevrt'],
+        libraries=['cudart', 'curand'],  # Remove 'cudadevrt'
         language='c++',
     )
 ]

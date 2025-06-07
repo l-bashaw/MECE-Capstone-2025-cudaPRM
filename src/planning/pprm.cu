@@ -3,6 +3,9 @@
 #include "../collision/cc_2D.cuh"
 #include "construction.cuh"
 
+// __constant__ float LOWER_BOUNDS[5];
+// __constant__ float UPPER_BOUNDS[5];
+
 namespace planning {
     void setupEnv(collision::environment::Env2D *&env_d, const collision::environment::Env2D &env_h){
         cudaMalloc(&env_d, sizeof(collision::environment::Env2D));
@@ -154,11 +157,11 @@ namespace planning {
         cudaCheckErrors("cudaMemcpy h_valid failure");
     }
 
-    void buildRoadmap(Roadmap &prm, collision::environment::Env2D *env_d, unsigned long seed){
+    void buildRoadmap(Roadmap &prm, collision::environment::Env2D *env_d, Bounds bounds, unsigned long seed){
         int blocksize = 256;
         int gridsize = (NUM_STATES + blocksize - 1) / blocksize;
         int gridsize1 = (NUM_STATES * K + blocksize - 1) / blocksize;
-        prm::construction::generateStates<<<gridsize, blocksize>>>(prm.d_states, prm.d_validNodes, *env_d, seed);
+        prm::construction::generateStates<<<gridsize, blocksize>>>(prm.d_states, prm.d_validNodes, *env_d, bounds, seed);
         cudaDeviceSynchronize();
         cudaCheckErrors("Stategen kernel launch failure");
 
