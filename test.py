@@ -1,6 +1,6 @@
 import time
 import torch
-import parallelrm_cuda
+import cuPRM
 
 import matplotlib.pyplot as plt
 from matplotlib.patches import Circle, Rectangle
@@ -156,11 +156,27 @@ def test_prm():
     circles = torch.tensor([
         [2.0, 2.0, 0.5],  # x, y, radius
         [8.0, 8.0, 1.0],
+        [5.0, 5.0, 0.3],
+        [3.0, 7.0, 0.4],
+        [7.0, 3.0, 0.6],
+        [1.0, 9.0, 0.2],
+        [9.0, 2.0, 0.5],
+        [6.0, 6.0, 0.4],
+        [4.0, 1.0, 0.3],
+        [2.5, 3.5, 0.2],
     ], dtype=torch.float32, device='cuda')
     
     rectangles = torch.tensor([
         [4.0, 4.0, 1.0, 2.0],  # x, y, height, width
         [6.0, 2.0, 0.5, 1.5],
+        [2.0, 8.0, 1.5, 1.0],
+        [9.0, 1.0, 2.0, 1.0],
+        [3.0, 6.0, 1.0, 2.0],
+        [8.0, 4.0, 1.0, 1.0],
+        [1.0, 5.0, 1.0, 1.0],
+        [7.0, 7.0, 1.5, 1.5],
+        [5.0, 3.0, 1.0, 2.0],
+        [2.0, 2.0, 1.0, 1.0],
     ], dtype=torch.float32, device='cuda')
     
     # Define bounds [lower, upper] for [x, y, theta, pan, tilt]
@@ -172,8 +188,8 @@ def test_prm():
    
     t1 = time.time()
     # Build PRM
-    nodes, node_validity, neighbors, edges, edge_validity = parallelrm_cuda.build_prm(
-        circles, rectangles, bounds, num_states=1000, k=5, seed=12345
+    nodes, node_validity, neighbors, edges, edge_validity = cuPRM.build_prm(
+        circles, rectangles, bounds, seed=12345
     )
 
     t2 = time.time()

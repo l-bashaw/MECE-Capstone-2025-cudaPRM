@@ -2,8 +2,8 @@
 
 #include <torch/extension.h>
 #include <cuda_runtime.h>
-#include "collision/env_2D.cuh"
-#include "planning/pprm.cuh"
+#include "../collision/env_2D.cuh"
+#include "../planning/pprm.cuh"
 
 namespace prm_bindings {
     
@@ -12,8 +12,6 @@ namespace prm_bindings {
         torch::Tensor circles,      // [num_circles, 3] (x, y, radius)
         torch::Tensor rectangles,   // [num_rectangles, 4] (x, y, width, height)  
         torch::Tensor bounds,       // [2, 5] (lower_bounds, upper_bounds)
-        int num_states = 5000,
-        int k = 10,
         unsigned long seed = 12345
     );
     

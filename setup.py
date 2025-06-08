@@ -10,9 +10,9 @@ if not torch.cuda.is_available():
 # Define the extension
 ext_modules = [
     cpp_extension.CUDAExtension(
-        name='parallelrm_cuda',
+        name='cuPRM',
         sources=[
-            'src/python_bindings.cpp',
+            'src/bindings/py_bind.cpp',
             'src/collision/cc_2D.cu', 
             'src/collision/env_2D.cu',
             'src/planning/construction.cu',
@@ -26,7 +26,7 @@ ext_modules = [
             'cxx': [
                 '-O3', 
                 '-std=c++17',
-                '-DTORCH_EXTENSION_NAME=parallelrm_cuda',
+                '-DTORCH_EXTENSION_NAME=cuPRM',
                 '-DWITH_CUDA',
                 '-fPIC'
             ],
@@ -37,19 +37,18 @@ ext_modules = [
                 '--expt-relaxed-constexpr',
                 '--expt-extended-lambda',
                 '-std=c++17',
-                #'-rdc=true',
-                '-DTORCH_EXTENSION_NAME=parallelrm_cuda',
+                '-DTORCH_EXTENSION_NAME=cuPRM',
                 '-DWITH_CUDA',
                 '--compiler-options=-fPIC'
             ]
         },
-        libraries=['cudart', 'curand'],  # Remove 'cudadevrt'
+        libraries=['cudart', 'curand'],  
         language='c++',
     )
 ]
 
 setup(
-    name='parallelrm',
+    name='cuPRM',
     ext_modules=ext_modules,
     cmdclass={'build_ext': cpp_extension.BuildExtension},
     zip_safe=False,

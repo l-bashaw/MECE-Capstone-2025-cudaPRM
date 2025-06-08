@@ -1,10 +1,10 @@
-#include "python_bindings.h"
+#include "py_bind.h"
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 #include <torch/extension.h>
-#include "params/hyperparameters.cuh"
-#include "planning/pprm.cuh"
-#include "collision/env_2D.cuh"
+#include "../params/hyperparameters.cuh"
+#include "../planning/pprm.cuh"
+#include "../collision/env_2D.cuh"
 
 namespace prm_bindings {
 
@@ -83,8 +83,6 @@ namespace prm_bindings {
             torch::Tensor circles,
             torch::Tensor rectangles, 
             torch::Tensor bounds,
-            int num_states,
-            int k,
             unsigned long seed
         ) {
         // Validate inputs
@@ -126,7 +124,5 @@ PYBIND11_MODULE(TORCH_EXTENSION_NAME, m) {
           pybind11::arg("circles"),
           pybind11::arg("rectangles"), 
           pybind11::arg("bounds"),
-          pybind11::arg("num_states") = 5000,
-          pybind11::arg("k") = 10,
           pybind11::arg("seed") = 12345);
 }
