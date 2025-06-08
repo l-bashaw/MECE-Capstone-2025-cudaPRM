@@ -1,8 +1,9 @@
+import torch
+import warnings
+from nn import percscorenn
+
 from torch2trt import torch2trt
 from torch2trt import TRTModule
-import torch
-import percscorenn
-import warnings
 
 def build_pt_from_dict(model_path, label_size=3, to_cuda=True): 
     input_dim = torch.load(model_path)['layers.0.weight'].shape[1]

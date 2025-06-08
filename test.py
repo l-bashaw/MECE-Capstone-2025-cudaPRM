@@ -2,10 +2,12 @@ import time
 import torch
 import cuPRM
 
-import matplotlib.pyplot as plt
-from matplotlib.patches import Circle, Rectangle
-import torch
 import numpy as np
+import matplotlib.pyplot as plt
+
+from fk import fk
+from matplotlib.patches import Circle, Rectangle
+
 
 def visualize_prm_from_tensors(nodes, node_validity, neighbors, edges, edge_validity, 
                               circles=None, rectangles=None, bounds=None):
@@ -185,23 +187,13 @@ def test_prm():
         [10.0, 10.0, 3.14159, 0.0, 0.0]  # upper bounds
     ], dtype=torch.float32, device='cuda')
     
-   
-    t1 = time.time()
     # Build PRM
     nodes, node_validity, neighbors, edges, edge_validity = cuPRM.build_prm(
         circles, rectangles, bounds, seed=12345
     )
 
-    t2 = time.time()
-    print(f"PRM build time: {t2 - t1:.4f} seconds")
-
-    print(f"Nodes shape: {nodes.device}, {nodes.shape}")
-    print(f"Node validity shape: {node_validity.device}, {node_validity.shape}")
-    print(f"Neighbors shape: {neighbors.device}, {neighbors.shape}")
-    print(f"Edges shape: {edges.device}, {edges.shape}")
-    print(f"Edge validity shape: {edge_validity.device}, {edge_validity.shape}")
-    print(f"Valid nodes: {node_validity.sum().item()}/{len(node_validity)}")
-
+    # Replace invalid neighbor connections with -1
+    valid_neighbors = torch.where(edge_validity, neighbors, -1)
 
     fig = visualize_prm_from_tensors(
         nodes=nodes,
@@ -214,6 +206,7 @@ def test_prm():
         bounds=[0, 10, 0, 10]  # optional
     )
     plt.show()
+
 
 
 if __name__ == "__main__":
