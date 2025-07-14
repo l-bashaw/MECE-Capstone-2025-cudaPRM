@@ -1,0 +1,12 @@
+
+
+conda create -n rapids-25.06 -c rapidsai -c conda-forge -c nvidia  \
+    rapids=25.06 python=3.12 'cuda-version>=12.0,<=12.8' \
+    networkx nx-cugraph=25.06 'pytorch=*=*cuda*'
+
+pip install trimesh, numpy, torch, scipy, matplotlib
+pip install pytorch fk, lightning, 
+
+# Optional: 
+install tensorrt 
+pip install torch2trt
