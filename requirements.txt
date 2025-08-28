@@ -5,7 +5,7 @@ conda create -n rapids-25.06 -c rapidsai -c conda-forge -c nvidia  \
     networkx nx-cugraph=25.06 'pytorch=*=*cuda*'
 
 pip install trimesh, numpy, torch, scipy, matplotlib
-pip install pytorch fk, lightning, 
+pip install pytorch fk, lightning, pybullet
 
 # Optional: 
 install tensorrt 

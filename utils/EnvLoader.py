@@ -166,11 +166,11 @@ class EnvironmentLoader:
         
         # Use circle if aspect ratio is close to 1 and it's a typically circular object
         if aspect_ratio < 1.3 and is_circular_type:
-            return True
+            return False
         
         # For very small objects, use circles for simplicity
         if max(width, height) < 0.5:
-            return True
+            return False
             
         return False
     

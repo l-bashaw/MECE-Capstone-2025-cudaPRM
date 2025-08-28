@@ -1,29 +1,426 @@
 import time
 import torch
-
 import numpy as np
-
+import networkx as nx
 import matplotlib.pyplot as plt
-
-from prm import PSPRM
+from prm import PSPRM, Solution
 from matplotlib.lines import Line2D
 from nn.inference import ModelLoader
 from utils.EnvLoader import EnvironmentLoader
 from matplotlib.patches import Circle, Rectangle
 
-import networkx as nx
+# def visualize_environment_and_path(env, prm, path, trajectory, source_node, target_node):
+#     """
+#     Visualize the environment, obstacles, path, and trajectory
+#     """
+#     fig, axes = plt.subplots(1, 2, figsize=(16, 8))
+    
+#     # Extract environment bounds for plotting
+#     bounds = env['bounds'].cpu().numpy()
+#     x_min, y_min = bounds[0, :2]
+#     x_max, y_max = bounds[1, :2]
+    
+#     # Plot 1: Environment overview with path
+#     ax1 = axes[0]
+#     ax1.set_xlim(x_min - 0.1, x_max + 0.1)
+#     ax1.set_ylim(y_min - 0.1, y_max + 0.1)
+#     ax1.set_aspect('equal')
+#     ax1.set_title('Environment with Path Planning', fontsize=14, fontweight='bold')
+#     ax1.grid(True, alpha=0.3)
+    
+#     # Draw obstacles using the correct format
+#     if 'circles' in env and env['circles'] is not None:
+#         circles = env['circles'].cpu().numpy() if torch.is_tensor(env['circles']) else np.array(env['circles'])
+#         if len(circles) > 0:
+#             for cx, cy, r in circles:
+#                 circle = Circle((cx, cy), r, fill=True, alpha=0.5, color='green')
+#                 ax1.add_patch(circle)
+    
+#     if 'rectangles' in env and env['rectangles'] is not None:
+#         rectangles = env['rectangles'].cpu().numpy() if torch.is_tensor(env['rectangles']) else np.array(env['rectangles'])
+#         if len(rectangles) > 0:
+#             for rx, ry, h, w in rectangles:
+#                 rect = Rectangle((rx - w/2, ry - h/2), w, h, fill=True, alpha=0.5, color='green')
+#                 ax1.add_patch(rect)
+    
+#     # Draw object if present
+#     if 'object_pose' in env:
+#         obj_pose = env['object_pose'].cpu().numpy()
+#         circle = Circle((obj_pose[0], obj_pose[1]), 0.05, 
+#                        facecolor='orange', alpha=0.8, edgecolor='darkorange')
+#         ax1.add_patch(circle)
+    
+#     # Draw all PRM nodes (light gray)
+#     if hasattr(prm, 'graph') and prm.graph.number_of_nodes() > 0:
+#         positions = {}
+#         for node in prm.graph.nodes():
+#             node_data = prm.graph.nodes[node]
+#             if 'pos' in node_data:
+#                 pos = node_data['pos']
+#                 if isinstance(pos, torch.Tensor):
+#                     pos = pos.cpu().numpy()
+#                 positions[node] = pos[:2]  # Use only x, y coordinates
+#                 ax1.plot(pos[0], pos[1], 'o', color='lightgray', markersize=2, alpha=0.5)
+        
+#         # Draw PRM edges (light gray)
+#         for edge in prm.graph.edges():
+#             if edge[0] in positions and edge[1] in positions:
+#                 pos1, pos2 = positions[edge[0]], positions[edge[1]]
+#                 ax1.plot([pos1[0], pos2[0]], [pos1[1], pos2[1]], 
+#                         '-', color='lightgray', alpha=0.3, linewidth=0.5)
+    
+#     # Draw the planned path
+#     if path and len(path) > 1:
+#         path_positions = []
+#         for node in path:
+#             if node in positions:
+#                 path_positions.append(positions[node])
+        
+#         if path_positions:
+#             path_x = [pos[0] for pos in path_positions]
+#             path_y = [pos[1] for pos in path_positions]
+#             ax1.plot(path_x, path_y, 'b-', linewidth=3, alpha=0.8, label='Planned Path')
+            
+#             # Highlight path nodes
+#             ax1.scatter(path_x, path_y, c='blue', s=30, alpha=0.8, zorder=5)
+    
+#     # Draw start and goal nodes
+#     if source_node in positions:
+#         start_pos = positions[source_node]
+#         ax1.plot(start_pos[0], start_pos[1], 'go', markersize=12, 
+#                 label='Start', markeredgecolor='darkgreen', markeredgewidth=2)
+    
+#     if target_node in positions:
+#         goal_pos = positions[target_node]
+#         ax1.plot(goal_pos[0], goal_pos[1], 'rs', markersize=12, 
+#                 label='Goal', markeredgecolor='darkred', markeredgewidth=2)
+    
+#     ax1.legend(loc='upper right')
+#     ax1.set_xlabel('X Position')
+#     ax1.set_ylabel('Y Position')
+    
+#     # Plot 2: Detailed trajectory
+#     ax2 = axes[1]
+#     ax2.set_title('Generated Trajectory', fontsize=14, fontweight='bold')
+#     ax2.grid(True, alpha=0.3)
+    
+#     if trajectory is not None and len(trajectory) > 0:
+#         if isinstance(trajectory, torch.Tensor):
+#             traj_np = trajectory.cpu().numpy()
+#         else:
+#             traj_np = np.array(trajectory)
+        
+#         # Plot trajectory
+#         if traj_np.shape[1] >= 2:
+#             ax2.plot(traj_np[:, 0], traj_np[:, 1], 'g-', linewidth=2, alpha=0.8, label='Trajectory')
+#             ax2.scatter(traj_np[::max(1, len(traj_np)//20), 0], 
+#                        traj_np[::max(1, len(traj_np)//20), 1], 
+#                        c='green', s=20, alpha=0.6)
+            
+#             # Mark start and end of trajectory
+#             ax2.plot(traj_np[0, 0], traj_np[0, 1], 'go', markersize=12, 
+#                     label='Trajectory Start', markeredgecolor='darkgreen', markeredgewidth=2)
+#             ax2.plot(traj_np[-1, 0], traj_np[-1, 1], 'rs', markersize=12, 
+#                     label='Trajectory End', markeredgecolor='darkred', markeredgewidth=2)
+    
+#     # Draw obstacles on trajectory plot as well using the correct format
+#     if 'circles' in env and env['circles'] is not None:
+#         circles = env['circles'].cpu().numpy() if torch.is_tensor(env['circles']) else np.array(env['circles'])
+#         if len(circles) > 0:
+#             for cx, cy, r in circles:
+#                 circle = Circle((cx, cy), r, fill=True, alpha=0.5, color='green')
+#                 ax2.add_patch(circle)
+    
+#     if 'rectangles' in env and env['rectangles'] is not None:
+#         rectangles = env['rectangles'].cpu().numpy() if torch.is_tensor(env['rectangles']) else np.array(env['rectangles'])
+#         if len(rectangles) > 0:
+#             for rx, ry, h, w in rectangles:
+#                 rect = Rectangle((rx - w/2, ry - h/2), w, h, fill=True, alpha=0.5, color='green')
+#                 ax2.add_patch(rect)
+    
+#     # Draw object on trajectory plot
+#     if 'object_pose' in env:
+#         obj_pose = env['object_pose'].cpu().numpy()
+#         circle = Circle((obj_pose[0], obj_pose[1]), 0.05, 
+#                        facecolor='orange', alpha=0.8, edgecolor='darkorange')
+#         ax2.add_patch(circle)
+    
+#     ax2.set_xlim(x_min - 0.1, x_max + 0.1)
+#     ax2.set_ylim(y_min - 0.1, y_max + 0.1)
+#     ax2.set_aspect('equal')
+#     ax2.legend(loc='upper right')
+#     ax2.set_xlabel('X Position')
+#     ax2.set_ylabel('Y Position')
+    
+#     plt.tight_layout()
+#     return fig
+
+# def print_path_info(path, trajectory, prm):
+#     """
+#     Print information about the generated path and trajectory
+#     """
+#     print("="*60)
+#     print("PATH PLANNING RESULTS")
+#     print("="*60)
+    
+#     if path:
+#         print(f"Path found with {len(path)} nodes:")
+#         print(f"Node sequence: {' -> '.join(map(str, path))}")
+        
+#         # Calculate path length
+#         total_distance = 0
+#         if hasattr(prm, 'graph'):
+#             for i in range(len(path) - 1):
+#                 if prm.graph.has_edge(path[i], path[i+1]):
+#                     edge_data = prm.graph.edges[path[i], path[i+1]]
+#                     if 'weight' in edge_data:
+#                         total_distance += edge_data['weight']
+        
+#         print(f"Total path distance: {total_distance:.3f}")
+#     else:
+#         print("No path found!")
+    
+#     if trajectory is not None and len(trajectory) > 0:
+#         print(f"Trajectory generated with {len(trajectory)} points")
+#         if isinstance(trajectory, torch.Tensor):
+#             traj_np = trajectory.cpu().numpy()
+#             print(f"Start position: [{traj_np[0, 0]:.3f}, {traj_np[0, 1]:.3f}]")
+#             print(f"End position: [{traj_np[-1, 0]:.3f}, {traj_np[-1, 1]:.3f}]")
+            
+#             # Calculate trajectory length
+#             distances = np.sqrt(np.sum(np.diff(traj_np[:, :2], axis=0)**2, axis=1))
+#             total_traj_length = np.sum(distances)
+#             print(f"Total trajectory length: {total_traj_length:.3f}")
+#     else:
+#         print("No trajectory generated!")
+    
+#     print("="*60)
+
+import matplotlib.pyplot as plt
+import matplotlib.animation as animation
+from matplotlib.patches import Circle, Rectangle, FancyArrowPatch
+import numpy as np
+import torch
+
+def visualize_environment_and_path(env, prm, path, trajectory, source_node, target_node, animate=True, animation_speed=50):
+    """
+    Visualize the environment, obstacles, path, and trajectory with optional animation
+    
+    Args:
+        env: Environment dictionary
+        prm: PRM object
+        path: Planned path
+        trajectory: Trajectory array with shape (n_points, 3) where columns are [x, y, theta]
+        source_node: Start node
+        target_node: Goal node
+        animate: Whether to create animation (default: True)
+        animation_speed: Animation interval in milliseconds (default: 50)
+    """
+    fig, axes = plt.subplots(1, 2, figsize=(16, 8))
+    
+    # Extract environment bounds for plotting
+    bounds = env['bounds'].cpu().numpy()
+    x_min, y_min = bounds[0, :2]
+    x_max, y_max = bounds[1, :2]
+    
+    # Plot 1: Environment overview with path
+    ax1 = axes[0]
+    ax1.set_xlim(x_min - 0.1, x_max + 0.1)
+    ax1.set_ylim(y_min - 0.1, y_max + 0.1)
+    ax1.set_aspect('equal')
+    ax1.set_title('Environment with Path Planning', fontsize=14, fontweight='bold')
+    ax1.grid(True, alpha=0.3)
+    
+    # Draw obstacles using the correct format
+    def draw_obstacles(ax):
+        if 'circles' in env and env['circles'] is not None:
+            circles = env['circles'].cpu().numpy() if torch.is_tensor(env['circles']) else np.array(env['circles'])
+            if len(circles) > 0:
+                for cx, cy, r in circles:
+                    circle = Circle((cx, cy), r, fill=True, alpha=0.5, color='green')
+                    ax.add_patch(circle)
+        
+        if 'rectangles' in env and env['rectangles'] is not None:
+            rectangles = env['rectangles'].cpu().numpy() if torch.is_tensor(env['rectangles']) else np.array(env['rectangles'])
+            if len(rectangles) > 0:
+                for rx, ry, h, w in rectangles:
+                    rect = Rectangle((rx - w/2, ry - h/2), w, h, fill=True, alpha=0.5, color='green')
+                    ax.add_patch(rect)
+        
+        # Draw object if present
+        if 'object_pose' in env:
+            obj_pose = env['object_pose'].cpu().numpy()
+            circle = Circle((obj_pose[0], obj_pose[1]), 0.05, 
+                           facecolor='orange', alpha=0.8, edgecolor='darkorange')
+            ax.add_patch(circle)
+    
+    draw_obstacles(ax1)
+    
+    # Draw all PRM nodes (light gray)
+    positions = {}
+    if hasattr(prm, 'graph') and prm.graph.number_of_nodes() > 0:
+        for node in prm.graph.nodes():
+            node_data = prm.graph.nodes[node]
+            if 'pos' in node_data:
+                pos = node_data['pos']
+                if isinstance(pos, torch.Tensor):
+                    pos = pos.cpu().numpy()
+                positions[node] = pos[:2]  # Use only x, y coordinates
+                ax1.plot(pos[0], pos[1], 'o', color='lightgray', markersize=2, alpha=0.5)
+        
+        # Draw PRM edges (light gray)
+        for edge in prm.graph.edges():
+            if edge[0] in positions and edge[1] in positions:
+                pos1, pos2 = positions[edge[0]], positions[edge[1]]
+                ax1.plot([pos1[0], pos2[0]], [pos1[1], pos2[1]], 
+                        '-', color='lightgray', alpha=0.3, linewidth=0.5)
+    
+    # Draw the planned path
+    if path and len(path) > 1:
+        path_positions = []
+        for node in path:
+            if node in positions:
+                path_positions.append(positions[node])
+        
+        if path_positions:
+            path_x = [pos[0] for pos in path_positions]
+            path_y = [pos[1] for pos in path_positions]
+            ax1.plot(path_x, path_y, 'b-', linewidth=3, alpha=0.8, label='Planned Path')
+            
+            # Highlight path nodes
+            ax1.scatter(path_x, path_y, c='blue', s=30, alpha=0.8, zorder=5)
+    
+    # Draw start and goal nodes
+    if source_node in positions:
+        start_pos = positions[source_node]
+        ax1.plot(start_pos[0], start_pos[1], 'go', markersize=12, 
+                label='Start', markeredgecolor='darkgreen', markeredgewidth=2)
+    
+    if target_node in positions:
+        goal_pos = positions[target_node]
+        ax1.plot(goal_pos[0], goal_pos[1], 'rs', markersize=12, 
+                label='Goal', markeredgecolor='darkred', markeredgewidth=2)
+    
+    ax1.legend(loc='upper right')
+    ax1.set_xlabel('X Position')
+    ax1.set_ylabel('Y Position')
+    
+    # Plot 2: Animated trajectory
+    ax2 = axes[1]
+    ax2.set_title('Animated Robot Trajectory', fontsize=14, fontweight='bold')
+    ax2.grid(True, alpha=0.3)
+    ax2.set_xlim(x_min - 0.1, x_max + 0.1)
+    ax2.set_ylim(y_min - 0.1, y_max + 0.1)
+    ax2.set_aspect('equal')
+    
+    draw_obstacles(ax2)
+    
+    # Initialize animation elements
+    trajectory_line = None
+    robot_arrow = None
+    trail_points = None
+    
+    if trajectory is not None and len(trajectory) > 0:
+        if isinstance(trajectory, torch.Tensor):
+            traj_np = trajectory.cpu().numpy()
+        else:
+            traj_np = np.array(trajectory)
+        
+        if traj_np.shape[1] >= 3:  # Ensure we have x, y, theta
+            # Plot full trajectory path (static)
+            ax2.plot(traj_np[:, 0], traj_np[:, 1], 'g--', linewidth=1, alpha=0.3, label='Full Path')
+            
+            # Mark start and end of trajectory
+            ax2.plot(traj_np[0, 0], traj_np[0, 1], 'go', markersize=12, 
+                    label='Trajectory Start', markeredgecolor='darkgreen', markeredgewidth=2)
+            ax2.plot(traj_np[-1, 0], traj_np[-1, 1], 'rs', markersize=12, 
+                    label='Trajectory End', markeredgecolor='darkred', markeredgewidth=2)
+            
+            if animate:
+                # Initialize animated elements
+                trajectory_line, = ax2.plot([], [], 'g-', linewidth=3, alpha=0.8, label='Traveled Path')
+                trail_points, = ax2.plot([], [], 'ro', markersize=3, alpha=0.6)
+                
+                # Calculate arrow size based on plot dimensions
+                plot_range = max(x_max - x_min, y_max - y_min)
+                arrow_length = plot_range * 0.05  # 5% of plot range
+                
+                # Create robot arrow (will be updated in animation)
+                robot_arrow = FancyArrowPatch((0, 0), (arrow_length, 0),
+                                            arrowstyle='->', mutation_scale=20,
+                                            color='red', linewidth=3, alpha=0.9)
+                ax2.add_patch(robot_arrow)
+                
+                def animate_frame(frame):
+                    # Update trajectory line (path traveled so far)
+                    trajectory_line.set_data(traj_np[:frame+1, 0], traj_np[:frame+1, 1])
+                    
+                    # Update trail points (recent positions)
+                    trail_start = max(0, frame - 10)  # Show last 10 points
+                    trail_points.set_data(traj_np[trail_start:frame+1, 0], 
+                                         traj_np[trail_start:frame+1, 1])
+                    
+                    # Update robot arrow position and orientation
+                    if frame < len(traj_np):
+                        x, y, theta, _, _ = traj_np[frame]
+                        
+                        # Calculate arrow end point
+                        dx = arrow_length * np.cos(theta)
+                        dy = arrow_length * np.sin(theta)
+                        
+                        # Update arrow position and direction
+                        robot_arrow.set_positions((x, y), (x + dx, y + dy))
+                    
+                    return trajectory_line, trail_points, robot_arrow
+                
+                # Create animation
+                n_frames = len(traj_np)
+                ani = animation.FuncAnimation(fig, animate_frame, frames=n_frames,
+                                            interval=animation_speed, blit=True, repeat=True)
+                
+                # Store animation reference to prevent garbage collection
+                fig.animation = ani
+            
+            else:
+                # Static visualization with arrows at selected points
+                ax2.plot(traj_np[:, 0], traj_np[:, 1], 'g-', linewidth=2, alpha=0.8, label='Trajectory')
+                
+                # Show arrows at every nth point to avoid clutter
+                n_arrows = min(20, len(traj_np))  # Maximum 20 arrows
+                arrow_indices = np.linspace(0, len(traj_np)-1, n_arrows, dtype=int)
+                
+                plot_range = max(x_max - x_min, y_max - y_min)
+                arrow_length = plot_range * 0.03
+                
+                for i in arrow_indices:
+                    x, y, theta = traj_np[i]
+                    dx = arrow_length * np.cos(theta)
+                    dy = arrow_length * np.sin(theta)
+                    
+                    arrow = FancyArrowPatch((x, y), (x + dx, y + dy),
+                                          arrowstyle='->', mutation_scale=15,
+                                          color='red', linewidth=2, alpha=0.7)
+                    ax2.add_patch(arrow)
+    
+    ax2.legend(loc='upper right')
+    ax2.set_xlabel('X Position')
+    ax2.set_ylabel('Y Position')
+    
+    plt.tight_layout()
+    
+    return fig
+
+
 
 def main():
-    device = 'cuda' 
+    device = 'cuda'
     dtype = torch.float32
-
-    env_config_file = "/home/lenman/capstone/parallelrm/resources/scenes/scene_hostpital_plant_0.yaml"  
+    env_config_file = "/home/lenman/capstone/parallelrm/resources/scenes/scene.yaml"  
     model_path = "/home/lenman/capstone/parallelrm/resources/models/percscore-nov12-50k.pt"
-
     seed = 22363387
-    source_node = 463  
+    source_node = 78  
     target_node = 747
-
+    
     print("Loading environment and model...")
     env_loader = EnvironmentLoader(device=device)
     model_loader = ModelLoader(label_size=3, max_batch_size=10000, use_trt=True)
@@ -31,36 +428,37 @@ def main():
     env['bounds'] = torch.concat([env['bounds'], torch.tensor([[-3.14159, 0.0, 0.0], [3.14159, 0.0, 0.0]], dtype=dtype, device=device)], dim=1)
     env['object_pose'] = torch.tensor([.175, .78, .82, 1.0, 0.0, 0.0, 1.0], dtype=dtype, device=device)
     env['object_label'] = torch.tensor([0.0, 0.0, 1.0], dtype=dtype, device=device)
-
     model = model_loader.load_model(model_path)
-
-    print("Starting testing...\n\n")
-
     
-    
-    prm = PSPRM(model, env)
-    prm.build_prm(seed)
-    path = prm.a_star_search(source_node, target_node, alpha=1, beta=0.1)
-  
-    fig = visualize_prm_from_networkx(
-        prm.graph, 
-        circles=env['circles'], 
-        rectangles=env['rectangles'],
-        bounds=env['bounds'][:, :2], 
-        path=path
-    )
-    plt.show()
-    del fig
-    path2 = prm.a_star_search(source_node, target_node, alpha=2, beta=0.3)
-    fig = visualize_prm_from_networkx(
-        prm.graph, 
-        circles=env['circles'], 
-        rectangles=env['rectangles'],
-        bounds=env['bounds'][:, :2], 
-        path=path2
-    )
-    plt.show()
+    print("Starting testing...\n")
+    for i in range(5):
+        start_time = time.time()
+        prm = PSPRM(model, env)
+        prm.build_prm(seed)   # graph attributes 'x', 'y', 'theta', 'pan', 'tilt'
+        #print(prm.graph.nodes(data=True))
+        
+        path = prm.a_star_search(source_node, target_node, alpha=1, beta=0.1)
+        end_time = time.time()
+        print(f"Path planning completed in {end_time - start_time:.3f} seconds")
 
+        t2 = time.time()
+        sol = Solution(path)
+        trajectory = sol.generate_trajectory(prm.graph)
+        t3 = time.time()
+        print(f"Trajectory generation completed in {t3 - t2:.3f} seconds\n")
+
+    #print_path_info(path, trajectory, prm)
+    
+    fig = visualize_environment_and_path(env, prm, path, trajectory, source_node, target_node, animation_speed=10)
+    
+    # plt.savefig('prm_visualization.png', dpi=300, bbox_inches='tight')
+    # print("Visualization saved as 'prm_visualization.png'")
+    
+    plt.show()
+    
+
+if __name__ == "__main__":
+    main()
 
 
 def visualize_prm_from_networkx(G, circles=None, rectangles=None, bounds=None, path=None):
@@ -269,10 +667,6 @@ def visualize_prm_from_networkx(G, circles=None, rectangles=None, bounds=None, p
     ax.legend(handles=legend_elements, loc='upper right')
     
     return fig
-
-if __name__ == "__main__":
-    main()
-
 
 # fig = visualize_prm_from_networkx(
 #     graph, 

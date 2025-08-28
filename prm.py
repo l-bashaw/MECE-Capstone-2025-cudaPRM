@@ -5,6 +5,7 @@ import numpy as np
 import networkx as nx
 import pytorch_kinematics as pk
 
+from scipy.interpolate import make_interp_spline
 
 # Each PSPRM instance has an associated model that it uses and environment that it represents,
 # as well as a graph that it builds based on the environment.
@@ -215,3 +216,63 @@ class PSPRM:
         except nx.NetworkXNoPath:
             print(f"No path found from {start_node} to {goal_node}")
             return None
+
+
+
+
+class Solution:
+    def __init__(self, path):
+        self.path = path
+        self.trajectory = None
+    
+    def set_path(self, path):
+        self.path = path
+        self.trajectory = None
+
+    def generate_trajectory(self, graph, num_points=1000, degree=3):
+
+        if not self.path or len(self.path) < 2:
+            raise ValueError("Path must contain at least 2 nodes")
+    
+        x_coords = nx.get_node_attributes(graph, 'x')
+        y_coords = nx.get_node_attributes(graph, 'y')
+        pan = nx.get_node_attributes(graph, 'pan')
+        tilt = nx.get_node_attributes(graph, 'tilt')
+
+
+        if not x_coords or not y_coords or not pan or not tilt:
+            raise ValueError("Graph nodes must have all attributes")
+        
+        # Vectorized coordinate extraction using list comprehension + array conversion
+        try:
+            waypoints = np.array([[x_coords[node_id], y_coords[node_id], pan[node_id], tilt[node_id]] for node_id in self.path])
+        except KeyError as e:
+            raise ValueError(f"Node {e} not found in graph")
+
+        # Handle edge case with two waypoints
+        if len(waypoints) == 2:
+            # Linear interpolation for 2 points
+            t = np.linspace(0, 1, num_points)[:, np.newaxis]  
+            trajectory = waypoints[0] + t * (waypoints[1] - waypoints[0]) 
+            self.trajectory = trajectory
+            return trajectory
+
+        t = np.linspace(0, 1, len(waypoints))
+    
+        spline_x = make_interp_spline(t, waypoints[:, 0], k=degree)
+        spline_y = make_interp_spline(t, waypoints[:, 1], k=degree)
+        spline_pan = make_interp_spline(t, waypoints[:, 2], k=degree)
+        spline_tilt = make_interp_spline(t, waypoints[:, 3], k=degree)
+
+        # Get analytical derivatives directly from the splines
+        spline_x_dot = spline_x.derivative()
+        spline_y_dot = spline_y.derivative()
+
+
+        t_new = np.linspace(0, 1, num_points)
+        theta = np.arctan2(spline_y_dot(t_new), spline_x_dot(t_new))
+
+        trajectory = np.column_stack([spline_x(t_new), spline_y(t_new), theta, spline_pan(t_new), spline_tilt(t_new)])
+        #velocity = np.column_stack([spline_x.derivative()(t_new), spline_y.derivative()(t_new)])
+        
+        return trajectory #, velocity
