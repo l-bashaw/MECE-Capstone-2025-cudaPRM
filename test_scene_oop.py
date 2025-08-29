@@ -434,21 +434,23 @@ def main():
     model = model_loader.load_model(model_path)
     
     print("Starting testing...\n")
-    for i in range(5):
-        start_time = time.time()
-        prm = PSPRM(model, env)
-        prm.build_prm(seed)   # graph attributes 'x', 'y', 'theta', 'pan', 'tilt'
-        #print(prm.graph.nodes(data=True))
-        
-        path = prm.a_star_search(source_node, target_node, alpha=.2, beta=1)
-        end_time = time.time()
-        print(f"Path planning completed in {end_time - start_time:.3f} seconds")
+    start_time = time.time()
+    prm = PSPRM(model, env)
+    prm.build_prm(seed)   # graph attributes 'x', 'y', 'theta', 'pan', 'tilt'
+    #print(prm.graph.nodes(data=True))
+    
+    path = prm.a_star_search(source_node, target_node, alpha=.2, beta=1)
+    end_time = time.time()
+    print(f"Path planning completed in {end_time - start_time:.3f} seconds")
 
-        t2 = time.time()
-        sol = Solution(path)
-        trajectory = sol.generate_trajectory(prm.graph)
-        t3 = time.time()
-        print(f"Trajectory generation completed in {t3 - t2:.3f} seconds\n")
+    t2 = time.time()
+    sol = Solution(path)
+    trajectory = sol.generate_trajectory(prm.graph)
+    t3 = time.time()
+    print(f"Trajectory generation completed in {t3 - t2:.3f} seconds\n")
+
+    # save trajectory to csv
+    np.savetxt("./test_trajectory.csv", trajectory, delimiter=",")
 
     #print_path_info(path, trajectory, prm)
     
