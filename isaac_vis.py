@@ -58,46 +58,92 @@ import omni.isaac.core.utils.stage as stage_utils
 from omni.isaac.core.materials import OmniPBR
 from omni.isaac.core.objects.ground_plane import GroundPlane
 from omni.isaac.debug_draw import _debug_draw
-from planning.sim_utils import IsaacSimCamera
+from utils.SimUtils import IsaacSimCamera
 
+
+import torch
+import networkx as nx
+import matplotlib.pyplot as plt
+from prm import PSPRM, Solution
+from matplotlib.lines import Line2D
+from nn.inference import ModelLoader
+from utils.EnvLoader import EnvironmentLoader
+from matplotlib.patches import Circle, Rectangle
 
 def set_robot_state(robot, state):
     # Set the joint positions
     pan_index = 3
     tilt_index = 4
-    pan_val = state[0]
-    tilt_val = state[1]
+    pan_val = state[3]
+    tilt_val = state[4]
     robot.set_joint_positions(np.array([pan_val, tilt_val]), joint_indices=np.array([pan_index, tilt_index]))
 
     # Set the world pose
-    theta = state[4]
+    theta = state[2]
     w = np.cos(theta / 2.0)
     z = np.sin(theta / 2.0)
     quaternion = [w, 0.0, 0.0, z]
-    robot.set_world_pose(position=[state[2], state[3], 0.0], orientation=quaternion)
+    robot.set_world_pose(position=[state[0], state[1], 0.0], orientation=quaternion)
 
 
 def main():
-     # URDF
+
+    # planning -----------------------------------------------------------------------
+    device = 'cuda'
+    dtype = torch.float32
+    env_config_file = "/home/lenman/capstone/parallelrm/resources/scenes/environment/multigoal_demo.yaml"  
+    model_path = "/home/lenman/capstone/parallelrm/resources/models/percscore-nov12-50k.pt"
+    seed = 22363387
+    source_node = 78  
+    target_node = 657
+    
+    print("Loading environment and model...")
+    env_loader = EnvironmentLoader(device=device)
+    model_loader = ModelLoader(label_size=3, max_batch_size=10000, use_trt=True)
+    env = env_loader.load_world(env_config_file)
+    env['bounds'] = torch.concat([env['bounds'], torch.tensor([[-3.14159, 0.0, 0.0], [3.14159, 0.0, 0.0]], dtype=dtype, device=device)], dim=1)
+    
+    # Cup
+    env['object_pose'] = torch.tensor([-0.5, 2.5, 0.7, 0.0, 0.0, 0.7071068, -0.7071068], dtype=dtype, device=device)
+    env['object_label'] = torch.tensor([0.0, 0.0, 1.0], dtype=dtype, device=device)
+    
+    model = model_loader.load_model(model_path)
+    
+    print("Starting testing...\n")
+    start_time = time.time()
+    prm = PSPRM(model, env)
+    prm.build_prm(seed)   # graph attributes 'x', 'y', 'theta', 'pan', 'tilt'
+    #print(prm.graph.nodes(data=True))
+    
+    path = prm.a_star_search(source_node, target_node, alpha=.2, beta=1)
+    end_time = time.time()
+    print(f"Path planning completed in {end_time - start_time:.3f} seconds")
+
+    t2 = time.time()
+    sol = Solution(path)
+    trajectory = sol.generate_trajectory(prm.graph)
+    t3 = time.time()
+    print(f"Trajectory generation completed in {t3 - t2:.3f} seconds\n")
+
+    # Simulation -----------------------------------------------------------------------
+
+    # Robot and envuronment paths
     file_path = "resources/robots/stretch/stretch.urdf"
-    param_file = "resources/robots/stretch/robot_params.yaml"
-    # Environment
     yaml_path = "resources/scenes/environment/multigoal_demo.yaml"
+
+    # param_file = "resources/robots/stretch/robot_params.yaml"
+    # monitoring_object = "cup"
+
     # Plan data
     # states_yaml = args.plan_data
     # trajectories_yaml = args.traj_data
-    # Create the world
-    monitoring_object = "human"
     
+    # Initialize the world
     world = World()
-    
     world.clear()
-    
     world.scene.add_default_ground_plane()
     GroundPlane(prim_path="/World/groundPlane", size=20, color=np.array([0.85, 0.65, 0.6]), z_position=0.01)
     action_registry = omni.kit.actions.core.get_action_registry()
-    
-    action_registry = omni .kit.actions.core.get_action_registry()
     action = action_registry.get_action("omni.kit.viewport.menubar.lighting", "set_lighting_mode_off")
     action.execute()
 
@@ -130,8 +176,8 @@ def main():
     import_config.density = 0.0
     extension_path = get_extension_path_from_name("omni.importer.urdf")
 
+
     #################### Load the robot ####################
-    
     result, prim_path = omni.kit.commands.execute(
         "URDFParseAndImportFile",
         urdf_path=file_path,
@@ -140,13 +186,12 @@ def main():
     robot = world.scene.add(Robot(prim_path=prim_path, name="stretch_robot"))
     robot_prim = Robot(prim_path=prim_path, name="fetch")
     robot = world.scene.add(robot_prim)
-
-    
     world.reset()
     world.step(render=True)
     print(robot.dof_names)
     print(robot_prim.dof_properties)
     
+
     ################# Set the camera #################
     camera = Camera(
         prim_path="/stretch/camera_color_optical_frame/camera",
@@ -159,16 +204,14 @@ def main():
     print(camera.get_focal_length())
     camera.set_focal_length(2.0)
 
+
     #################### Load the environment ####################
-    
-    
     # read yaml file
     with open(yaml_path, "r") as stream:
         try:
             yaml_data = yaml.safe_load(stream)
         except yaml.YAMLError as exc:
             print(exc)
-
     prim_dict = {}
     for obj in yaml_data["world"]["collision_objects"]:
         if "meshes" not in obj:
@@ -205,15 +248,14 @@ def main():
         #     _, prim_path = omni.kit.commands.execute( "URDFParseAndImportFile", urdf_path=resource,import_config=import_config)                        
         prim = XFormPrim(prim_path, name=obj["id"], scale=dimension, position=positions, orientation=np.array([orientations[3], orientations[0], orientations[1], orientations[2]]), visible=True)
         prim_dict[obj["id"]] = prim
-        
     world.reset()
-    
+
+    # Helper functions
     def active_sleep(duration):
             curr_time = time.time()
             while time.time() - curr_time < duration:
                 world.step(render=True)
-        
-    
+
     def countdown(t):
         while t:
             mins, secs = divmod(t, 60)
@@ -222,7 +264,11 @@ def main():
             active_sleep(1)
             t -= 1
 
-    states = np.genfromtxt(args.plan_csv, delimiter=",", skip_header=1)
+    
+
+    
+
+    states = trajectory
     
     countdown(3)  # Countdown for 5 seconds before starting the video recording
     
