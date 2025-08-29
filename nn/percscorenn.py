@@ -2,6 +2,13 @@ import pytorch_lightning as pl
 import torch
 import torch.nn as nn
 
+# label_map = {
+#   "human": [1, 0, 0],
+#   "monitor": [0, 1, 0],
+#   "cup": [0, 0, 1]
+# }
+
+
 class PercScoreProxyNet(pl.LightningModule):
 
   def __init__(self, label_size):

@@ -1,0 +1,63 @@
+name: stretch_sim
+robot_state:
+  joint_state:
+    name: [joint_head_tilt, joint_head_pan, joint_wrist_yaw, joint_arm_l0, joint_arm_l1, joint_arm_l2, joint_arm_l3, joint_lift, joint_gripper_finger_left, joint_gripper_finger_right]
+    position: [0, 0, 0.0, 0, 0, 0, 0, 0.4, 0, 0]
+  robot_model_name: stretch
+fixed_frame_transforms:
+  - child_frame_id: world
+    transform:
+      rotation: [0, 0, 0, 1]
+      translation: [0, 0, 0]
+world:
+  collision_objects:
+    - id: human
+      mesh_poses:
+        - orientation: [0, 0, 0, 1]
+          position: [20, 20, 1.65]
+      meshes:
+        - dimensions: [1.0, 1.0, 1.0]
+          resource: resources/scenes/environment/objects/human/model.obj
+          render_resource: resources/scenes/environment/objects/human/model.usdz
+    # - id: table
+    #   mesh_poses:
+    #     - orientation: [0, 0, 0, 1]
+    #       position: [1.4665000000000001, 0, 0]
+    #   meshes:
+    #     - dimensions: [1.0, 1.0, 1.0]
+    #       resource: resources/scenes/environment/objects/table/model.dae
+    - id: cup
+      mesh_poses:
+        - orientation: [0, 0, 0.7071068, -0.7071068]
+          position: [25.0, -2.5, 0.1]
+      meshes:
+        - dimensions: [1.0, 1.0, 1.0]
+          resource: resources/scenes/environment/objects/cup/model.obj
+          render_resource: resources/scenes/environment/objects/cup/model.usdz
+
+    - id: monitor1
+      mesh_poses:
+        - orientation: [0, 0, 1.0, 0]
+          position: [1.0, -2.0, 0.9]
+      meshes:
+        - dimensions: [1, 1, 1]
+          resource: resources/scenes/environment/objects/monitor/model.obj
+          render_resource: resources/scenes/environment/objects/monitor/model.usdz
+
+    - id: monitor2
+      mesh_poses:
+        - orientation: [0, 0, 0.7071068, -0.7071068]
+          position: [-0.5, 2, 0.9]
+      meshes:
+        - dimensions: [1, 1, 1]
+          resource: resources/scenes/environment/objects/monitor/model.obj
+          render_resource: resources/scenes/environment/objects/monitor/model.usdz
+
+    - id: monitor3
+      mesh_poses:
+        - orientation: [0, 0, 1, 0]
+          position: [-1.5, 0, 0.9]
+      meshes:
+        - dimensions: [1, 1, 1]
+          resource: resources/scenes/environment/objects/monitor/model.obj
+          render_resource: resources/scenes/environment/objects/monitor/model.usdz

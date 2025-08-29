@@ -415,19 +415,22 @@ def visualize_environment_and_path(env, prm, path, trajectory, source_node, targ
 def main():
     device = 'cuda'
     dtype = torch.float32
-    env_config_file = "/home/lenman/capstone/parallelrm/resources/scenes/scene.yaml"  
+    env_config_file = "/home/lenman/capstone/parallelrm/resources/scenes/environment/multigoal_demo.yaml"  
     model_path = "/home/lenman/capstone/parallelrm/resources/models/percscore-nov12-50k.pt"
     seed = 22363387
     source_node = 78  
-    target_node = 747
+    target_node = 657
     
     print("Loading environment and model...")
     env_loader = EnvironmentLoader(device=device)
     model_loader = ModelLoader(label_size=3, max_batch_size=10000, use_trt=True)
     env = env_loader.load_world(env_config_file)
     env['bounds'] = torch.concat([env['bounds'], torch.tensor([[-3.14159, 0.0, 0.0], [3.14159, 0.0, 0.0]], dtype=dtype, device=device)], dim=1)
-    env['object_pose'] = torch.tensor([.175, .78, .82, 1.0, 0.0, 0.0, 1.0], dtype=dtype, device=device)
+    
+    # Cup
+    env['object_pose'] = torch.tensor([-0.5, 2.5, 0.7, 0.0, 0.0, 0.7071068, -0.7071068], dtype=dtype, device=device)
     env['object_label'] = torch.tensor([0.0, 0.0, 1.0], dtype=dtype, device=device)
+    
     model = model_loader.load_model(model_path)
     
     print("Starting testing...\n")
@@ -437,7 +440,7 @@ def main():
         prm.build_prm(seed)   # graph attributes 'x', 'y', 'theta', 'pan', 'tilt'
         #print(prm.graph.nodes(data=True))
         
-        path = prm.a_star_search(source_node, target_node, alpha=1, beta=0.1)
+        path = prm.a_star_search(source_node, target_node, alpha=.2, beta=1)
         end_time = time.time()
         print(f"Path planning completed in {end_time - start_time:.3f} seconds")
 

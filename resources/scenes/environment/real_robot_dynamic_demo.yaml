@@ -1,0 +1,59 @@
+name: stretch_sim
+robot_state:
+  joint_state:
+    name: [joint_head_tilt, joint_head_pan, joint_wrist_yaw, joint_arm_l0, joint_arm_l1, joint_arm_l2, joint_arm_l3, joint_lift, joint_gripper_finger_left, joint_gripper_finger_right]
+    position: [0, 0, 0.0, 0, 0, 0, 0, 0.4, 0, 0]
+  robot_model_name: stretch
+fixed_frame_transforms:
+  - child_frame_id: world
+    transform:
+      rotation: [0, 0, 0, 1]
+      translation: [0, 0, 0]
+world:
+  collision_objects:
+    # - id: Table
+    #   primitives:
+    #     - type: box
+    #       dimensions: [1.48, 0.6, 0.98]
+    #   primitive_poses:
+    #     - position: [0, 0.4, 0.49]
+    #       orientation: [0, 0, 0, 1] 
+    - id: CabinetLeft
+      primitives:
+        - type: box
+          dimensions: [0.37, 0.49, 0.54]
+      primitive_poses:
+        - position: [-1.625, 0, 0.27]
+          orientation: [0, 0, 0, 1] 
+    - id: CabinetRight
+      primitives:
+        - type: box
+          dimensions: [0.37, 0.49, 0.54]
+      primitive_poses:
+        - position: [1.625, 0, 0.27]
+          orientation: [0, 0, 0, 1] 
+
+    - id: wall_north_left
+      mesh_poses:
+        - orientation: [0, 0, 0]
+          position: [-2.5, 0, 0]
+      meshes:
+        - dimensions: [1.0, 1.0, 1.0]
+          resource: resources/scenes/environment/objects/wall/model.dae
+    - id: wall_north_right
+      mesh_poses:
+        - orientation: [0, 0, 0]
+          position: [2.5, 0, 0]
+      meshes:
+        - dimensions: [1.0, 1.0, 1.0]
+          resource: resources/scenes/environment/objects/wall/model.dae
+
+    # person between both cabinets
+    - id: human
+      mesh_poses:
+        - orientation: [0, 0, 0.7071068, 0.7071068]
+          position: [0.0, 0.0, 1.65]
+      meshes:
+        - dimensions: [1.0, 1.0, 1.0]
+          resource: resources/scenes/environment/objects/human/model.obj
+          render_resource: resources/scenes/environment/objects/human/model.usdz

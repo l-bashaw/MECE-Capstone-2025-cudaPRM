@@ -1,0 +1,8 @@
+link: camera_color_optical_frame
+near: 0.05
+far: 10
+fov: 42 #vertical
+width: 480
+height: 480
+horizontal_aperture: 0.00368
+frustum_path: resources/robots/stretch/camera_view_realsense6.stl

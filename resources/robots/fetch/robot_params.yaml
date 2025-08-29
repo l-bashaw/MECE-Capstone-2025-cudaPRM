@@ -1,0 +1,18 @@
+name: fetch
+urdf: resources/robots/fetch/fetch.urdf
+mesh_path: resources/robots/fetch/meshes
+srdf: resources/robots/fetch/fetch.srdf
+camera: resources/robots/fetch/camera.yaml
+group: head_with_torso
+ee_link: head_camera_rgb_optical_frame 
+base_link_start: [0, 0, 0] # for fixed base robots
+start: [0, 0, 0, 0.3, 0.3, 0, 0, 0.2, 0, 0, 0, 0.0, 0, 0, 0]
+joint_state_map: [5, 6, 0, 1, 2] # for pinocchio, e.g. grapeshot joint 0 is pinocchio joint 5
+pan_joint: joint_head_pan
+tilt_joint: joint_head_tilt
+pan_link: link_head_pan
+tilt_link: link_head_tilt
+max_pan_vel: 4.0
+max_tilt_vel: 4.0
+frustum_path: resources/robots/fetch/camera_view_realsense6.stl
+

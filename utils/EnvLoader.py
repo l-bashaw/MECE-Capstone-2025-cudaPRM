@@ -29,9 +29,9 @@ class EnvironmentLoader:
                                                  If None, will compute from obstacles
         
         Returns:
-            Dict: Environment dictionary with PyTorch tensors
+            Dict: Environment dictionary with PyTorch tensors (primitives)
         """
-        # Load YAML configuration
+
         with open(config_file, "r") as f:
             config = yaml.safe_load(f)
         
@@ -46,12 +46,11 @@ class EnvironmentLoader:
         for cc_object_name, cc_object in self.cc_objects.items():
             print(f"Processing object: {cc_object_name}")
             
-            # Get pose information
+            # Get pose and mesh information
             pose = cc_object["mesh_poses"][0]
             rotation = pose["orientation"]  # [x, y, z, w]
             translation = pose["position"]
             
-            # Get mesh information
             mesh_info = cc_object["meshes"][0]
             dimensions = mesh_info["dimensions"]
             resource_path = mesh_info["resource"]
@@ -59,44 +58,39 @@ class EnvironmentLoader:
             print(f"  Resource: {resource_path}")
            
             try:
-                # Load and process mesh using trimesh
                 mesh = trimesh.load(resource_path, force='mesh')
                 
-                # Handle case where trimesh returns a Scene object
                 if isinstance(mesh, trimesh.Scene):
-                    # Get the combined mesh from all geometries in the scene
-                    mesh = mesh.dump(concatenate=True)
+                    raise ValueError("Loaded a scene, expected a mesh, check the resource.")
                 
                 if len(mesh.vertices) == 0:
                     print(f"  Warning: Could not load mesh for {cc_object_name}, skipping...")
                     continue
                 
-                # Scale mesh vertices
+                # Apply dimensions scaling
                 mesh.vertices = mesh.vertices * np.array(dimensions)
                 
-                # Apply transformations
-                mesh.apply_translation(translation)
-                
-                # Convert quaternion [x, y, z, w] to rotation matrix
+                # Apply rotation first, then translation
                 quat_xyzw = rotation
                 rot = Rotation.from_quat(quat_xyzw)
                 rotation_matrix = rot.as_matrix()
-                
-                # Create 4x4 transformation matrix
                 transform = np.eye(4)
                 transform[:3, :3] = rotation_matrix
                 mesh.apply_transform(transform)
                 
-                # Get 2D bounding box
+                # Apply translation
+                mesh.apply_translation(translation)
+                
+                # Get 2D bounding box from the transformed mesh
                 bbox_3d = mesh.bounds
                 
                 # Convert to 2D representation
-                self._process_object_to_2d(cc_object_name, bbox_3d, cc_object)
+                self._process_object_to_2d(cc_object_name, bbox_3d, cc_object, rotation, dimensions)
                 
             except Exception as e:
                 print(f"  Error processing {cc_object_name}: {e}")
                 print(f"  Creating bounding box from dimensions and position...")
-                self._create_bbox_from_dimensions(cc_object_name, translation, dimensions)
+                self._create_bbox_from_dimensions(cc_object_name, translation, dimensions, rotation)
         
         # Set bounds
         if bounds is not None:
@@ -107,7 +101,7 @@ class EnvironmentLoader:
         # Convert to PyTorch format
         return self._create_pytorch_environment()
     
-    def _process_object_to_2d(self, object_name: str, bbox_3d, cc_object: Dict):
+    def _process_object_to_2d(self, object_name: str, bbox_3d, cc_object: Dict, rotation: List[float], dimensions: List[float]):
         """Process 3D bounding box to 2D representation."""
         # bbox_3d is a (2, 3) array with min and max bounds
         min_bound = bbox_3d[0]
@@ -119,23 +113,49 @@ class EnvironmentLoader:
         width = max_bound[0] - min_bound[0]
         height = max_bound[1] - min_bound[1]
         
+        # Debug print
+        print(f"  Bbox: center=({center_x:.2f}, {center_y:.2f}), size=({width:.2f}x{height:.2f})")
+        
         # Decide whether to represent as circle or rectangle
         if self._should_be_circle(width, height, object_name):
-            # Use circle representation
             radius = max(width, height) / 2
             self.circles.append([center_x, center_y, radius])
+            print(f"  Added as circle: center=({center_x:.2f}, {center_y:.2f}), radius={radius:.2f}")
         else:
-            # Use rectangle representation
-            self.rectangles.append([center_x, center_y, height, width])  # x, y, height, width
+            # Store as [x, y, height, width] for consistency
+            self.rectangles.append([center_x, center_y, height, width])
+            print(f"  Added as rectangle: center=({center_x:.2f}, {center_y:.2f}), size=({height:.2f}x{width:.2f})")
         
-        # Store in cc_objects for reference
         cc_object["bbox_2d"] = [center_x, center_y, width/2, height/2]
         cc_object["representation"] = "circle" if self._should_be_circle(width, height, object_name) else "rectangle"
     
-    def _create_bbox_from_dimensions(self, object_name: str, translation: List[float], dimensions: List[float]):
+    def _create_bbox_from_dimensions(self, object_name: str, translation: List[float], 
+                                   dimensions: List[float], rotation: List[float]):
         """Create bounding box directly from dimensions when mesh loading fails."""
         center_x, center_y = translation[0], translation[1]
-        width, height = dimensions[0], dimensions[1]
+        
+        # Apply rotation to dimensions to get proper width/height
+        quat_xyzw = rotation
+        rot = Rotation.from_quat(quat_xyzw)
+        
+        # Create corners of the original rectangle
+        dx, dy = dimensions[0]/2, dimensions[1]/2
+        corners = np.array([
+            [-dx, -dy, 0],
+            [dx, -dy, 0],
+            [dx, dy, 0],
+            [-dx, dy, 0]
+        ])
+        
+        # Rotate corners
+        rotated_corners = rot.apply(corners)
+        
+        # Find bounding box of rotated corners
+        min_corner = rotated_corners.min(axis=0)
+        max_corner = rotated_corners.max(axis=0)
+        
+        width = max_corner[0] - min_corner[0]
+        height = max_corner[1] - min_corner[1]
         
         if self._should_be_circle(width, height, object_name):
             radius = max(width, height) / 2
@@ -146,33 +166,16 @@ class EnvironmentLoader:
             print(f"  Added as rectangle (from dimensions): center=({center_x:.2f}, {center_y:.2f}), size=({height:.2f}x{width:.2f})")
     
     def _should_be_circle(self, width: float, height: float, object_name: str) -> bool:
-        """
-        Determine if an object should be represented as a circle or rectangle.
-        
-        Args:
-            width (float): Object width
-            height (float): Object height
-            object_name (str): Name of the object
-        
-        Returns:
-            bool: True if should be circle, False if rectangle
-        """
-        # Heuristics for circle vs rectangle decision
+        """Determine if the object should be represented as a circle."""
         aspect_ratio = max(width, height) / min(width, height)
-        
-        # If nearly square and certain object types, use circle
-        circular_objects = ['table', 'chair', 'plant', 'lamp', 'person', 'human']
+        circular_objects = ['plant', 'lamp', 'human', 'cup', 'cup_2']
         is_circular_type = any(obj_type.lower() in object_name.lower() for obj_type in circular_objects)
         
-        # Use circle if aspect ratio is close to 1 and it's a typically circular object
-        if aspect_ratio < 1.3 and is_circular_type:
+        # More strict aspect ratio for circular objects
+        if aspect_ratio < 1.2 and is_circular_type:
+            return True
+        else:
             return False
-        
-        # For very small objects, use circles for simplicity
-        if max(width, height) < 0.5:
-            return False
-            
-        return False
     
     def _compute_bounds_from_obstacles(self) -> List[List[float]]:
         """Compute environment bounds from obstacle positions."""
@@ -346,7 +349,7 @@ if __name__ == "__main__":
     loader = EnvironmentLoader(device='cuda' if torch.cuda.is_available() else 'cpu')
     
     # Load environment from YAML
-    config_file = "/home/lenman/capstone/parallelrm/resources/scenes/scene_hostpital_plant_0.yaml"  # Update this path
+    config_file = "/home/lenman/capstone/parallelrm/resources/scenes/environment/multigoal_demo.yaml"  # Update this path
     
     # Option 1: Auto-compute bounds
     env = loader.load_world(config_file)

@@ -1,0 +1,9 @@
+name: Lab
+look_objects: [Sofa, Table, Chair, Cup, Monitor]
+goal_objects:
+  Cabinet1: [0.5, 0.5]
+  Cabinet2: [0.5, 0.5]
+  Table: [0.5, 0.5]
+  Bed: [0.75, 1.0]
+workspace_mins: [-2.0, -2.5, 0.0]
+workspace_maxes: [1.5, 2.5, 5.0]
