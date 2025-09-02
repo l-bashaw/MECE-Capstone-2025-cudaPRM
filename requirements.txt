@@ -7,6 +7,18 @@ conda create -n rapids-25.06 -c rapidsai -c conda-forge -c nvidia  \
 pip install trimesh, numpy, torch, scipy, matplotlib
 pip install pytorch fk, lightning, pybullet
 
+python3 -m pip install --upgrade tensorrt
+https://docs.nvidia.com/deeplearning/tensorrt/latest/installing-tensorrt/installing.html
+
 # Optional: 
 install tensorrt 
 pip install torch2trt
+https://github.com/NVIDIA-AI-IOT/torch2trt
+
+create env with python 3.10
+install torch torchvision
+install tensorrt
+install torch2trt
+lightning trimesh pybind11 packaging 
+
+python setup_robust.py build_ext --inplace
