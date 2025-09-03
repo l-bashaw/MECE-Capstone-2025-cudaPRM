@@ -27,7 +27,41 @@ constexpr unsigned int K = 10;
 constexpr unsigned int NUM_STATES = 2000;  
 constexpr unsigned int DIM = 5;
 constexpr unsigned int INTERP_STEPS = 10;
-constexpr unsigned int R_TURNING = 0.05;  // half of R_ROBOT
+constexpr float R_TURNING = 0.05;  // half of R_ROBOT
+
+
+__device__ constexpr float PI = 3.14159265358979323846f;
+__device__ constexpr float TWO_PI = 2.0f * PI;
+__device__ constexpr float HALF_PI = 0.5f * PI;
+__device__ constexpr float ZERO_THRESHOLD = 10.0f * 1e-7f;
+__device__ constexpr float INVALID_PATH_VALUE = 999.0f;
+
+__device__ constexpr unsigned int RS_LEFT  = 0;
+__device__ constexpr unsigned int RS_RIGHT = 1;
+__device__ constexpr unsigned int RS_STRAIGHT = 2;
+__device__ constexpr unsigned int RS_NOP = 3;
+
+__device__ constexpr int REEDS_SHEPP_PATH_TYPES[18][5] = {
+    {RS_LEFT, RS_RIGHT, RS_LEFT, RS_NOP, RS_NOP},         // 0
+    {RS_RIGHT, RS_LEFT, RS_RIGHT, RS_NOP, RS_NOP},        // 1
+    {RS_LEFT, RS_RIGHT, RS_LEFT, RS_RIGHT, RS_NOP},       // 2
+    {RS_RIGHT, RS_LEFT, RS_RIGHT, RS_LEFT, RS_NOP},       // 3
+    {RS_LEFT, RS_RIGHT, RS_STRAIGHT, RS_LEFT, RS_NOP},    // 4
+    {RS_RIGHT, RS_LEFT, RS_STRAIGHT, RS_RIGHT, RS_NOP},   // 5
+    {RS_LEFT, RS_STRAIGHT, RS_RIGHT, RS_LEFT, RS_NOP},    // 6
+    {RS_RIGHT, RS_STRAIGHT, RS_LEFT, RS_RIGHT, RS_NOP},   // 7
+    {RS_LEFT, RS_RIGHT, RS_STRAIGHT, RS_RIGHT, RS_NOP},   // 8
+    {RS_RIGHT, RS_LEFT, RS_STRAIGHT, RS_LEFT, RS_NOP},    // 9
+    {RS_RIGHT, RS_STRAIGHT, RS_RIGHT, RS_LEFT, RS_NOP},   // 10
+    {RS_LEFT, RS_STRAIGHT, RS_LEFT, RS_RIGHT, RS_NOP},    // 11
+    {RS_LEFT, RS_STRAIGHT, RS_RIGHT, RS_NOP, RS_NOP},     // 12
+    {RS_RIGHT, RS_STRAIGHT, RS_LEFT, RS_NOP, RS_NOP},     // 13
+    {RS_LEFT, RS_STRAIGHT, RS_LEFT, RS_NOP, RS_NOP},      // 14
+    {RS_RIGHT, RS_STRAIGHT, RS_RIGHT, RS_NOP, RS_NOP},    // 15
+    {RS_LEFT, RS_RIGHT, RS_STRAIGHT, RS_LEFT, RS_RIGHT},  // 16
+    {RS_RIGHT, RS_LEFT, RS_STRAIGHT, RS_RIGHT, RS_LEFT}   // 17
+};
+
 
 // Bounds structure to pass to kernels
 struct Bounds {

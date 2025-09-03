@@ -1,41 +1,26 @@
+#pragma once
+#include "../params/hyperparameters.cuh"
+
 namespace lp::reedsshepp{
 
     // Reeds-Shepp path segment types
-    enum ReedsSheppSegmentType {
-        RS_LEFT = 0,
-        RS_RIGHT = 1,
-        RS_STRAIGHT = 2,
-        RS_NOP = 3
-    };
+    // enum ReedsSheppSegmentType {
+    //     RS_LEFT = 0,
+    //     RS_RIGHT = 1,
+    //     RS_STRAIGHT = 2,
+    //     RS_NOP = 3
+    // };
 
     // Device constant for path types (18 paths, up to 5 segments each)
-    __device__ __constant__ int d_reedsSheppPathTypes[18][5] = {
-        {RS_LEFT, RS_RIGHT, RS_LEFT, RS_NOP, RS_NOP},         // 0
-        {RS_RIGHT, RS_LEFT, RS_RIGHT, RS_NOP, RS_NOP},        // 1
-        {RS_LEFT, RS_RIGHT, RS_LEFT, RS_RIGHT, RS_NOP},       // 2
-        {RS_RIGHT, RS_LEFT, RS_RIGHT, RS_LEFT, RS_NOP},       // 3
-        {RS_LEFT, RS_RIGHT, RS_STRAIGHT, RS_LEFT, RS_NOP},    // 4
-        {RS_RIGHT, RS_LEFT, RS_STRAIGHT, RS_RIGHT, RS_NOP},   // 5
-        {RS_LEFT, RS_STRAIGHT, RS_RIGHT, RS_LEFT, RS_NOP},    // 6
-        {RS_RIGHT, RS_STRAIGHT, RS_LEFT, RS_RIGHT, RS_NOP},   // 7
-        {RS_LEFT, RS_RIGHT, RS_STRAIGHT, RS_RIGHT, RS_NOP},   // 8
-        {RS_RIGHT, RS_LEFT, RS_STRAIGHT, RS_LEFT, RS_NOP},    // 9
-        {RS_RIGHT, RS_STRAIGHT, RS_RIGHT, RS_LEFT, RS_NOP},   // 10
-        {RS_LEFT, RS_STRAIGHT, RS_LEFT, RS_RIGHT, RS_NOP},    // 11
-        {RS_LEFT, RS_STRAIGHT, RS_RIGHT, RS_NOP, RS_NOP},     // 12
-        {RS_RIGHT, RS_STRAIGHT, RS_LEFT, RS_NOP, RS_NOP},     // 13
-        {RS_LEFT, RS_STRAIGHT, RS_LEFT, RS_NOP, RS_NOP},      // 14
-        {RS_RIGHT, RS_STRAIGHT, RS_RIGHT, RS_NOP, RS_NOP},    // 15
-        {RS_LEFT, RS_RIGHT, RS_STRAIGHT, RS_LEFT, RS_RIGHT},  // 16
-        {RS_RIGHT, RS_LEFT, RS_STRAIGHT, RS_RIGHT, RS_LEFT}   // 17
-    };
+    //extern __device__ __constant__ int d_reedsSheppPathTypes[18][5];
 
-    // Constants
-    __device__ const float PI = 3.14159265358979323846f;
-    __device__ const float TWO_PI = 2.0f * PI;
-    __device__ const float HALF_PI = 0.5f * PI;
-    __device__ const float ZERO_THRESHOLD = 10.0f * 1e-7f; // float epsilon equivalent
-    __device__ const float INVALID_PATH_VALUE = 999.0f;
+
+    // // Constants
+    // extern __device__ const float PI;
+    // extern __device__ const float TWO_PI;
+    // extern __device__ const float HALF_PI;
+    // extern __device__ const float ZERO_THRESHOLD ; // float epsilon equivalent
+    // extern __device__ const float INVALID_PATH_VALUE;
 
     // Simple path structure for CUDA
     struct ReedsSheppPath {

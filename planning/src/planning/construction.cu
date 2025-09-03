@@ -163,13 +163,13 @@ namespace prm::construction{
         if (i >= NUM_STATES) return;
 
         // Allocate shared memory for the interpolation step values
-        __shared__ float interp[INTERP_STEPS];
-        if(threadIdx.x == 0) {  // Only the first thread initializes this
-            for (int t = 0; t < INTERP_STEPS; t++) {
-                interp[t] = (1.0f / (INTERP_STEPS-1)) * t;  
-            }
-        }
-        __syncthreads();
+        // __shared__ float interp[INTERP_STEPS];
+        // if(threadIdx.x == 0) {  // Only the first thread initializes this
+        //     for (int t = 0; t < INTERP_STEPS; t++) {
+        //         interp[t] = (1.0f / (INTERP_STEPS-1)) * t;  
+        //     }
+        // }
+        // __syncthreads();
 
         // Load vec_i into registers
         float vec_i[DIM];
@@ -196,7 +196,7 @@ namespace prm::construction{
             float path[INTERP_STEPS * DIM]; // used to store reedsshepp path
             // find the reedsshepp path between the two states
             // populated the edges array with the path
-
+            
 
             lp::reedsshepp::computeReedsSheppPath(vec_i, vec_n, path);
             for (int t = 0; t < INTERP_STEPS; t++) {

@@ -2,7 +2,6 @@
 #include "../collision/cc_2D.cuh"
 #include "../collision/env_2D.cuh"
 
-
 namespace prm::construction
 {
     // __global__ void generateStates(
