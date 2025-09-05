@@ -43,7 +43,7 @@ class PSPRM:
         self.tensors['edge_validity'] = edge_validity
 
         neighbors = torch.where(edge_validity, neighbors, -1)  # Replace invalid neighbors with -1
-        diffs = self.project_nodes(nodes, object_pose_world)    # Project nodes and return diffs (difference between camera pose and object pose at each node)
+        diffs = self.project_nodesFIX(nodes, object_pose_world)    # Project nodes and return diffs (difference between camera pose and object pose at each node)
         diffs = torch.cat((diffs, obj_label.unsqueeze(0).repeat(nodes.shape[0], 1)), dim=1)
         p_scores = self.model(diffs)
         # print(f"Max score: {p_scores.max().item():.4f}, Min score: {p_scores.min().item():.4f}, Mean score: {p_scores.mean().item():.4f}")
@@ -144,7 +144,110 @@ class PSPRM:
         
 
 
+    def project_nodesFIX(self, nodes, object_pose_world):
+        """
+        Calculate pan and tilt angles for robot states to look at target object,
+        update camera transforms with pan/tilt, and compute diffs.
+    
+        Args:
+            nodes: Tensor [B, 5] = (x, y, theta, pan, tilt)
+            object_pose_world: Tensor [3] = object xyz in world
+    
+        Returns:
+            diffs: [B, 7] = (object xyz in cam frame, cam orientation quat)
+        """
+        device = nodes.device
+        dtype = nodes.dtype
+        B = nodes.shape[0]
+    
+        # Camera mount config (robot -> camera base)
+        cam_pos_robot = torch.tensor([0.0450, 0.0523, 1.2607], dtype=dtype, device=device)
+        cam_rot_robot = torch.tensor(
+            [[0.0, 0.0, 1.0],
+            [1.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0]], dtype=dtype, device=device
+        )
+    
+        # Extract robot states
+        robot_states = nodes[:, :3]  # [x, y, theta]
+    
+        # Object position homogeneous
+        object_pos_world_h = torch.cat([object_pose_world[:3], torch.ones(1, dtype=dtype, device=device)])
+        object_pos_world_h = object_pos_world_h.unsqueeze(0).expand(B, -1)
+    
+        # Camera base in robot frame
+        T_robot_camera_base = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
+        T_robot_camera_base[:, :3, :3] = cam_rot_robot.unsqueeze(0).repeat(B, 1, 1)
+        T_robot_camera_base[:, :3, 3] = cam_pos_robot.unsqueeze(0).repeat(B, 1)
+    
+        # Robot -> world
+        cos_theta = torch.cos(robot_states[:, 2])
+        sin_theta = torch.sin(robot_states[:, 2])
+        T_world_robot = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
+        T_world_robot[:, 0, 0] = cos_theta
+        T_world_robot[:, 0, 1] = -sin_theta
+        T_world_robot[:, 1, 0] = sin_theta
+        T_world_robot[:, 1, 1] = cos_theta
+        T_world_robot[:, 0, 3] = robot_states[:, 0]
+        T_world_robot[:, 1, 3] = robot_states[:, 1]
+    
+        # Camera base in world
+        T_world_cam_base = torch.bmm(T_world_robot, T_robot_camera_base)
+    
+        # Object in camera base frame (before pan/tilt)
+        T_cam_base_world = torch.inverse(T_world_cam_base)
+        obj_in_cam_base = torch.bmm(T_cam_base_world, object_pos_world_h.unsqueeze(-1)).squeeze(-1)[:, :3]
+        dx, dy, dz = obj_in_cam_base[:, 0], obj_in_cam_base[:, 1], obj_in_cam_base[:, 2]
+    
+        # Pan/tilt calculation
+        pan = torch.atan2(dx, dz)
+        tilt = torch.atan2(dy, torch.sqrt(dx**2 + dz**2))
+        pan = torch.clamp(pan, -3.9, 1.5)
+        tilt = torch.clamp(tilt, -1.53, 0.79)
+    
+        # Save into nodes
+        nodes[:, 3] = pan
+        nodes[:, 4] = tilt
+    
+        # --- Apply pan/tilt to camera transform ---
+        def make_pan_tilt_transform(pan, tilt, dtype, device):
+            B = pan.shape[0]
+            T = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
 
+            # Pan: rotation around Y
+            cos_p, sin_p = torch.cos(pan), torch.sin(pan)
+            R_pan = torch.stack([
+                torch.stack([ cos_p, torch.zeros_like(pan), sin_p], dim=1),
+                torch.stack([ torch.zeros_like(pan), torch.ones_like(pan), torch.zeros_like(pan)], dim=1),
+                torch.stack([-sin_p, torch.zeros_like(pan), cos_p], dim=1)
+            ], dim=1)
+
+            # Tilt: rotation around X
+            cos_t, sin_t = torch.cos(tilt), torch.sin(tilt)
+            R_tilt = torch.stack([
+                torch.stack([ torch.ones_like(tilt), torch.zeros_like(tilt), torch.zeros_like(tilt)], dim=1),
+                torch.stack([ torch.zeros_like(tilt), cos_t, -sin_t], dim=1),
+                torch.stack([ torch.zeros_like(tilt), sin_t,  cos_t], dim=1)
+            ], dim=1)
+
+            R = torch.bmm(R_tilt, R_pan)  # tilt ∘ pan
+            T[:, :3, :3] = R
+            return T
+
+        T_cam_base_cam = make_pan_tilt_transform(pan, tilt, dtype, device)
+        T_world_cam = torch.bmm(T_world_cam_base, T_cam_base_cam)
+        T_cam_world = torch.inverse(T_world_cam)
+    
+        # Object in true camera frame
+        obj_in_cam = torch.bmm(T_cam_world, object_pos_world_h.unsqueeze(-1)).squeeze(-1)[:, :3]
+    
+        # Camera orientation as quaternion
+        R_cam_world = T_cam_world[:, :3, :3]
+        obj_quat_in_cam = pk.matrix_to_quaternion(R_cam_world)
+    
+        # Final diffs
+        diffs = torch.cat([-obj_in_cam, obj_quat_in_cam], dim=1)  # [B, 7]
+        return diffs
 
    
     def project_nodes(self, nodes, object_pose_world):

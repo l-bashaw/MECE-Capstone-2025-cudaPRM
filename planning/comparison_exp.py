@@ -2,14 +2,113 @@ import time
 import torch
 
 import numpy as np
+import pytorch_kinematics as pk
 
 from prm import PSPRM, Solution
 from nn.inference import ModelLoader
 from utils.EnvLoader import EnvironmentLoader
 
+def compute_camera_diffs(nodes: np.ndarray, object_pose_world: np.ndarray):
+    """
+    Given robot states (with pan/tilt already filled) and an object position in world,
+    compute diffs = [obj_in_cam (3), cam_quat_in_world (4)] for each node.
+    """
+    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    dtype = torch.float32
+   
+    nodes_t = torch.tensor(nodes, dtype=dtype, device=device)
+    B = nodes_t.shape[0]
 
-def calculate_trajectory_perc_score(trajectory, object_pose, object_label):
-    return 999.0  # Placeholder implementation
+    # Camera mount config (zero pan/tilt reference)
+    cam_pos_robot = torch.tensor([0.0450, 0.0523, 1.2607], dtype=dtype, device=device)
+    cam_rot_robot = torch.tensor(
+        [[0.0, 0.0, 1.0],
+         [1.0, 0.0, 0.0],
+         [0.0, 1.0, 0.0]], dtype=dtype, device=device
+    )
+
+    # Extract states
+    robot_xytheta = nodes_t[:, :3]  # (x, y, theta)
+    pan = nodes_t[:, 3]
+    tilt = nodes_t[:, 4]
+
+    # Object homogeneous
+    object_pos_world_h = torch.cat([object_pose_world[:3], torch.ones(1, dtype=dtype, device=device)])
+    object_pos_world_h = object_pos_world_h.unsqueeze(0).expand(B, -1)
+
+    # Camera mount in robot frame
+    T_robot_camera_base = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
+    T_robot_camera_base[:, :3, :3] = cam_rot_robot.unsqueeze(0).repeat(B, 1, 1)
+    T_robot_camera_base[:, :3, 3] = cam_pos_robot.unsqueeze(0).repeat(B, 1)
+
+    # Robot -> world
+    cos_theta = torch.cos(robot_xytheta[:, 2])
+    sin_theta = torch.sin(robot_xytheta[:, 2])
+    T_world_robot = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
+    T_world_robot[:, 0, 0] = cos_theta
+    T_world_robot[:, 0, 1] = -sin_theta
+    T_world_robot[:, 1, 0] = sin_theta
+    T_world_robot[:, 1, 1] = cos_theta
+    T_world_robot[:, 0, 3] = robot_xytheta[:, 0]
+    T_world_robot[:, 1, 3] = robot_xytheta[:, 1]
+
+    # Camera base in world
+    T_world_cam_base = torch.bmm(T_world_robot, T_robot_camera_base)
+
+    # Pan/tilt transform
+    def make_pan_tilt_transform(pan, tilt):
+        B = pan.shape[0]
+        T = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
+
+        # Pan: rotation around Y
+        cos_p, sin_p = torch.cos(pan), torch.sin(pan)
+        R_pan = torch.stack([
+            torch.stack([ cos_p, torch.zeros_like(pan), sin_p], dim=1),
+            torch.stack([ torch.zeros_like(pan), torch.ones_like(pan), torch.zeros_like(pan)], dim=1),
+            torch.stack([-sin_p, torch.zeros_like(pan), cos_p], dim=1)
+        ], dim=1)
+
+        # Tilt: rotation around X
+        cos_t, sin_t = torch.cos(tilt), torch.sin(tilt)
+        R_tilt = torch.stack([
+            torch.stack([ torch.ones_like(tilt), torch.zeros_like(tilt), torch.zeros_like(tilt)], dim=1),
+            torch.stack([ torch.zeros_like(tilt), cos_t, -sin_t], dim=1),
+            torch.stack([ torch.zeros_like(tilt), sin_t,  cos_t], dim=1)
+        ], dim=1)
+
+        R = torch.bmm(R_tilt, R_pan)  # tilt ∘ pan
+        T[:, :3, :3] = R
+        return T
+
+    T_cam_base_cam = make_pan_tilt_transform(pan, tilt)
+    T_world_cam = torch.bmm(T_world_cam_base, T_cam_base_cam)
+    T_cam_world = torch.inverse(T_world_cam)
+
+    # Object in true camera frame
+    obj_in_cam = torch.bmm(T_cam_world, object_pos_world_h.unsqueeze(-1)).squeeze(-1)[:, :3]
+
+    # Camera orientation quaternion
+    R_cam_world = T_cam_world[:, :3, :3]
+    cam_quat = pk.matrix_to_quaternion(R_cam_world)
+
+    diffs = torch.cat([-obj_in_cam, cam_quat], dim=1)  # [B, 7]
+
+    return diffs
+
+def calculate_trajectory_perc_score(trajectory, object_pose, object_label, model):
+    diffs = compute_camera_diffs(trajectory, object_pose_world=object_pose)  # [N, 7]
+    diffs = torch.cat((diffs, object_label.unsqueeze(0).repeat(diffs.shape[0], 1)), dim=1)
+    p_scores = model(diffs)
+    
+    # Move to CPU and numpy
+    p_scores = p_scores.detach().cpu().numpy()
+    # return stats
+    return {
+        'mean': float(np.mean(p_scores)),
+        'std': float(np.std(p_scores)),
+        'min': float(np.min(p_scores)),
+        'max': float(np.max(p_scores))
+    }
 
 def main():
     device = 'cuda'
@@ -133,11 +232,11 @@ def main():
                 }
                 # print(timing_stats)
 
-                trajectory_perc_score = calculate_trajectory_perc_score(trajectory, env['object_pose'], env['object_label'])
+                trajectory_perc_score = calculate_trajectory_perc_score(trajectory, env['object_pose'], env['object_label'], model=model)
                 trajectories[obj_name].append({
                     "start": start.tolist(),
                     "goal": goal.tolist(),
-                    "trajectory": trajectory.tolist(), 
+                    # "trajectory": trajectory.tolist(), 
                     "timing": timing_stats, 
                     "perc_score": trajectory_perc_score
                 })  
