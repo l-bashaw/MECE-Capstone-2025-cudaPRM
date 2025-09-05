@@ -22,10 +22,23 @@ namespace prm::construction
         int* neighbors
     ); 
 
+    __global__ void findNeighborsForSingleState(
+        const float* roadmap_states,
+        const float* single_state,
+        int* neighbors
+    );
+
     __global__ void interpolate(
         const float* states, 
         int* neighbors, 
         float* edges
+    );
+
+    __global__ void interpolateForSingleState(
+        const float* single_state,  
+        const int* neighbors,       
+        const float* roadmap_states,
+        float* edges                
     );
 
 } // namespace prm::construction

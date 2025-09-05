@@ -24,10 +24,10 @@ constexpr float R_ROBOT = 0.1f;
 
 // PRM parameters
 constexpr unsigned int K = 10;   
-constexpr unsigned int NUM_STATES = 2000;  
+constexpr unsigned int NUM_STATES = 1500;  
 constexpr unsigned int DIM = 5;
 constexpr unsigned int INTERP_STEPS = 10;
-constexpr float R_TURNING = 0.05;  // half of R_ROBOT
+constexpr float R_TURNING = 1;  // half of R_ROBOT
 
 
 __device__ constexpr float PI = 3.14159265358979323846f;

@@ -20,12 +20,37 @@ namespace planning{
         bool  *d_validNodes, *d_validEdges;
     };
 
+    struct Start{
+        float *h_state, *d_state;
+        float *h_edges,  *d_edges;
+        int *h_neighbors, *d_neighbors;
+        bool *h_validNodes, *d_validNodes,
+             *h_validEdges, *d_validEdges;
+    };  
+
+    struct Goal{
+        float *h_state, *d_state;
+        float *h_edges,  *d_edges;
+        int *h_neighbors, *d_neighbors;
+        bool *h_validNodes, *d_validNodes,
+             *h_validEdges, *d_validEdges;
+    };
+
+    void allocateStartAndGoal(
+        Start &start, Goal &goal
+    );
+    void freeStartAndGoal(
+        Start &start, Goal &goal
+    );
+
     void allocateRoadmap(Roadmap &map);
     void freeRoadmap(Roadmap &map);
     void buildRoadmap(Roadmap &prm, collision::environment::Env2D *env_d, Bounds bounds, unsigned long seed);
 
     void copyToHost(Roadmap &prm);
-
+    void connectStartAndGoal(
+        Start &start, Goal &goal, const Roadmap &prm, collision::environment::Env2D *env_d
+    );
     // void roadmapToTensors(Roadmap &prm);
 }
 

@@ -153,6 +153,65 @@ namespace prm::construction{
         }    
     }
 
+    __global__ void findNeighborsForSingleState(
+        const float* roadmap_states, // Input roadmap states (NUM_STATES x DIM)
+        const float* single_state,   // Input single state (1 x DIM)
+        int* neighbors               // Output array of neighbor indices (K)
+    ) {
+        int i = threadIdx.x + blockIdx.x * blockDim.x;
+        if (i >= K) return;
+
+        // Stack allocate arrays to store top-k distances and indices
+        __shared__ float topDistances[K];
+        __shared__ int topIndices[K];
+
+        if (threadIdx.x == 0) {
+            for (int s = 0; s < K; s++) {
+                topDistances[s] = FLT_MAX;  // Initialize to overwriteable values
+                topIndices[s] = -1;
+            }
+        }
+        __syncthreads();
+
+        // Load the single state into registers
+        float vec_single[DIM];
+        for (int d = 0; d < DIM; d++) {
+            vec_single[d] = single_state[d];
+        }
+
+        // Iterate over all roadmap states to find the nearest neighbors
+        for (int j = 0; j < NUM_STATES; j++) {
+            float distance = 0.0f;
+
+            // Compute Euclidean distance between the single state and roadmap state j
+            for (int d = 0; d < DIM; d++) {
+                float diff = vec_single[d] - roadmap_states[j * DIM + d];
+                distance += diff * diff;
+            }
+
+            // Update the top-k neighbors
+            for (int m = 0; m < K; m++) {
+                if (distance < topDistances[m]) {
+                    // Shift elements to make room
+                    for (int n = K - 1; n > m; n--) {
+                        topDistances[n] = topDistances[n - 1];
+                        topIndices[n] = topIndices[n - 1];
+                    }
+
+                    // Insert new element
+                    topDistances[m] = distance;
+                    topIndices[m] = j;
+                    break;
+                }
+            }
+        }
+
+        // Write the top-k neighbor indices to the output array
+        if (i < K) {
+            neighbors[i] = topIndices[i];
+        }
+    }
+
     // Each thread interpolates between one vector and its neighbors
     __global__ void interpolate(
         const float* states,  // Input states
@@ -206,4 +265,39 @@ namespace prm::construction{
             }
         }
     }
+
+    __global__ void interpolateForSingleState(
+        const float* single_state,  // Input single state (1 x DIM)
+        const int* neighbors,       // Neighbors for the single state (K)
+        const float* roadmap_states,// Input roadmap states (NUM_STATES x DIM)
+        float* edges                // Output edges for the single state (K x INTERP_STEPS x DIM)
+    ) {
+        int i = threadIdx.x + blockIdx.x * blockDim.x;
+        if (i >= K) return;
+
+        // Load the single state into registers
+        float vec_single[DIM];
+        for (int d = 0; d < DIM; d++) {
+            vec_single[d] = single_state[d];
+        }
+
+        // Load the neighbor state into registers
+        int neighbor_idx = neighbors[i];
+        float vec_neighbor[DIM];
+        for (int d = 0; d < DIM; d++) {
+            vec_neighbor[d] = roadmap_states[neighbor_idx * DIM + d];
+        }
+
+        // Compute the Reeds-Shepp path between the single state and the neighbor
+        float path[INTERP_STEPS * DIM];
+        lp::reedsshepp::computeReedsSheppPath(vec_single, vec_neighbor, path);
+
+        // Store the interpolated path in the edges array
+        for (int t = 0; t < INTERP_STEPS; t++) {
+            for (int d = 0; d < DIM; d++) {
+                edges[i * INTERP_STEPS * DIM + t * DIM + d] = path[t * DIM + d];
+            }
+        }
+    }
+
 }

@@ -36,7 +36,7 @@ def parse_args():
 
 args = parse_args()
 # Start the simulation app
-simulation_app = SimulationApp(launch_config={"headless": args.headless, "sync_loads": True})
+simulation_app = SimulationApp(launch_config={"headless": False, "sync_loads": True})
 from pathlib import Path
 import numpy as np
 import omni
@@ -354,7 +354,7 @@ def main():
                 # if time.time() - start_record_time > record_time:
                 #     break
                 # 10 ms delay to allow for rendering
-                # active_sleep(0.01)
+                active_sleep(0.1)
                 
         # Release the video writer
         video_writer.release()

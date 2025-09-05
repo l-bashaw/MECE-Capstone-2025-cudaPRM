@@ -63,7 +63,16 @@ def visualize_environment_and_path(env, prm, path, trajectory, source_node, targ
             circle = Circle((obj_pose[0], obj_pose[1]), 0.05, 
                            facecolor='orange', alpha=0.8, edgecolor='darkorange')
             ax.add_patch(circle)
-    
+
+        for node in path:
+            if node in prm.graph.nodes:
+                node_data = prm.graph.nodes[node]
+            
+                x = node_data['x']
+                y = node_data['y']
+                
+                ax.plot(x, y, 'o', color='blue', markersize=6, alpha=0.9)
+
     draw_obstacles(ax1)
     
     # Draw all PRM nodes (light gray)
@@ -114,6 +123,8 @@ def visualize_environment_and_path(env, prm, path, trajectory, source_node, targ
     ax1.legend(loc='upper right')
     ax1.set_xlabel('X Position')
     ax1.set_ylabel('Y Position')
+
+    
     
     # Plot 2: Animated trajectory
     ax2 = axes[1]
@@ -290,16 +301,17 @@ def main():
     seed = 2387
     
 
-    start = {'x': 0.5, 'y': -3.0, 'theta': 3.14159/2}
-    goal = {'x': 0.5, 'y': 2.5, 'theta': -3.14159}
-    call_id = 0
+    # make start and goal tensors
+    start = np.array([0.5, -3, 3.14159/2, 0.0, 0.0]) 
+    goal = np.array([2.5, 2.5, -3.14159, 0.0, 0.0])
+    
 
     print("Loading environment and model...")
     env_loader = EnvironmentLoader(device=device)
     model_loader = ModelLoader(label_size=3, max_batch_size=10000, use_trt=False)
     env = env_loader.load_world(env_config_file)
     env['bounds'] = torch.concat([env['bounds'], torch.tensor([[-3.14159, 0.0, 0.0], [3.14159, 0.0, 0.0]], dtype=dtype, device=device)], dim=1)
-    print(env['bounds'])
+
     # Cup
     env['object_pose'] = torch.tensor([-0.5, 2.5, 0.7, 0.0, 0.0, 0.7071068, -0.7071068], dtype=dtype, device=device)
     env['object_label'] = torch.tensor([0.0, 0.0, 1.0], dtype=dtype, device=device)
@@ -309,57 +321,60 @@ def main():
     env['bounds'][1, 1] = 4
     model = model_loader.load_model(model_path)
 
-
-    print("Starting testing...\n")
-    start_time = time.time()
+    
     prm = PSPRM(model, env)
-    prm.build_prm(seed)   # graph attributes 'x', 'y', 'theta', 'pan', 'tilt'
+    for i in range(5):
+        t1 = time.time()
+        prm.build_prm(seed)                                           # graph attributes 'x', 'y', 'theta', 'pan', 'tilt'
+        st, go = prm.addStartAndGoal(start, goal)  # returns start_id, goal_id
+        # st = 87
+        # go = 457
+        # sg_params = prm.addStartAndGoal(start, goal)  # returns start_id, goal_id
+        # print node 311 of graph
+        # print(prm.graph.nodes[startid])
+        # print()
+        # print(prm.graph.nodes[goalid])
+        # print(sg_params['start'][0])
+        # print(sg_params['goal'][0])
 
-    print(f"\nNUM EDGES: {len(prm.graph.edges(data=False))}\n")
-    import networkx as nx
-    print(f"\nNUM CONNECTED: {nx.number_connected_components(prm.graph)}\n")
-    start_id, goal_id = prm.add_start_and_goal(start, goal, call_id)  # returns start_id, goal_id
+        path = prm.a_star_search(start_id=st, goal_id=go, alpha=0, beta=1)
+        sol = Solution(path)
+        sol.simplify(prm, env, max_skip_dist=4)
 
-    #plot_environment_with_heatmap(prm.graph, env['bounds'].cpu().numpy(), resolution=200)
-    #print(prm.graph.nodes(data=True))
-    
-    path = prm.a_star_search(start_id=start_id, goal_id=goal_id, alpha=0.2, beta=1)
-    end_time = time.time()
-    print(f"Path planning completed in {end_time - start_time:.3f} seconds")
+        trajectory = sol.generate_trajectory_rsplan(prm, turning_radius=1)
+        trajectory = sol.project_trajectory(env['object_pose'])
+        print(type(trajectory))  # np.ndarray
+        t2 = time.time()
+        print(f"Time: {t2 - t1:.4f} seconds")
 
-    t2 = time.time()
-    sol = Solution(path)
-    trajectory = sol.generate_trajectory(prm.graph)
-    t3 = time.time()
     sol.print_path(prm.graph)
-    print(f"Trajectory generation completed in {t3 - t2:.3f} seconds\n")
-
-    # save trajectory to csv
     np.savetxt("./test_trajectory.csv", trajectory, delimiter=",")
-
-    #print_path_info(path, trajectory, prm)
-    
-    fig = visualize_environment_and_path(env, prm, path, trajectory, start_id, goal_id, animation_speed=10)
+    fig = visualize_environment_and_path(env, prm, path, trajectory, st, go, animation_speed=100)
     plt.show()
-    # Save animation as video if present
-    # if hasattr(fig, 'animation'):
-    #     fig.animation.save('./prm_animation.gif', writer='ffmpeg', fps=30)
-    #     print("Animation saved as 'prm_animation.gif'")
-    # else:
-    #     # If no animation, save static image
-    #     fig.savefig('./prm_visualization.png', dpi=300, bbox_inches='tight')
-    #     print("Visualization saved as 'prm_visualization.png'")
-    
-# Current issue:
-    # Pan and tilt are calculated for the sampled thetas, but the trajectory generator creates new thetas
-    # Therefore, the pan and tilt values in the trajectory are not accurate
 
-# Solution:
-    # Build PRM like normal, but when creating the trajectory, recalculate pan and tilt for each waypoint that is returned by the A* search
-    # Then, interpolate between those pan and tilt values when generating the trajectory
+    plot_environment_with_heatmap(prm.graph, env['bounds'].cpu().numpy(), resolution=200)
+    
+    
+    # Save animation as video if present
+    if hasattr(fig, 'animation'):
+        fig.animation.save('./prm_animation.gif', writer='ffmpeg', fps=30)
+        print("Animation saved as 'prm_animation.gif'")
+    else:
+        # If no animation, save static image
+        fig.savefig('./prm_visualization.png', dpi=300, bbox_inches='tight')
+        print("Visualization saved as 'prm_visualization.png'")
+    
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+
 
 
 # def visualize_prm_from_networkx(G, circles=None, rectangles=None, bounds=None, path=None):

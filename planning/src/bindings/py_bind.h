@@ -26,4 +26,26 @@ namespace prm_bindings {
     );
     
     void setup_bounds(torch::Tensor bounds);
+
+
+    std::vector<torch::Tensor> addStartAndGoal_(
+        torch::Tensor nodes,
+        torch::Tensor node_validity,
+        torch::Tensor neighbors,
+        torch::Tensor edges,
+        torch::Tensor edge_validity,
+        torch::Tensor start,
+        torch::Tensor goal,
+        torch::Tensor circles,
+        torch::Tensor rectangles
+    );
+
+    planning::Roadmap tensors_to_roadmap(
+        torch::Tensor nodes,
+        torch::Tensor node_validity,
+        torch::Tensor neighbors,
+        torch::Tensor edges,
+        torch::Tensor edge_validity
+    );
+
 }

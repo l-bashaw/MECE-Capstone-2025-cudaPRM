@@ -69,7 +69,7 @@ namespace collision::environment{
             }
         }
 
-        // Check if theta from start to end wraps around more than pi/6, which is too much rotation for one edge
+        // // Check if theta from start to end wraps around more than pi/6, which is too much rotation for one edge
         // float start_theta = edges[start_of_edge + 2];
         // float end_theta = edges[start_of_edge + (INTERP_STEPS - 1) * DIM + 2];
         // float d_theta = end_theta - start_theta;    
