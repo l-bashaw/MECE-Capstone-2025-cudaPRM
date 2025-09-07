@@ -129,7 +129,9 @@ def main():
 
     # Robot and envuronment paths
     file_path = "resources/robots/stretch/stretch.urdf"
-    yaml_path = "resources/scenes/environment/multigoal_demo.yaml"
+    # yaml_path = "resources/scenes/environment/multigoal_demo.yaml"
+    yaml_path = "resources/scenes/environment/replanning_test_env.yaml"
+
 
     # param_file = "resources/robots/stretch/robot_params.yaml"
     # monitoring_object = "cup"
@@ -264,7 +266,8 @@ def main():
             active_sleep(1)
             t -= 1
 
-    
+    while True:
+        world.step(render=True)
 
     
 
