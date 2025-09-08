@@ -20,7 +20,7 @@
 
 // Collision checking buffer and robot radius
 constexpr float CC_E = 5e-3;
-constexpr float R_ROBOT = 0.1f;
+constexpr float R_ROBOT = 0.2f;
 
 // PRM parameters
 constexpr unsigned int K = 10;   

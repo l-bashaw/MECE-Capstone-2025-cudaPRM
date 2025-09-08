@@ -13,8 +13,8 @@ world:
   collision_objects:
     - id: human
       mesh_poses:
-        - orientation: [0, 0, 0, 1]
-          position: [1, 0, 1.65]
+        - orientation: [0, 0, 0.7071068, 0.7071068]
+          position: [1.2, 0, 1.65]
       meshes:
         - dimensions: [1.0, 1.0, 1.0]
           resource: resources/scenes/environment/objects/human/model.obj
@@ -22,7 +22,7 @@ world:
     - id: chair
       mesh_poses:
         - orientation: [0, 0, 0.7071068, -0.7071068]
-          position: [2.2, 0, 0]
+          position: [2, 0, 0]
       meshes:
         - dimensions: [1, 1, 0.8]
           resource: resources/scenes/environment/objects/Chair/model.obj

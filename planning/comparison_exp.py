@@ -1,3 +1,10 @@
+
+
+
+
+
+
+
 import time
 import torch
 
@@ -107,7 +114,8 @@ def calculate_trajectory_perc_score(trajectory, object_pose, object_label, model
         'mean': float(np.mean(p_scores)),
         'std': float(np.std(p_scores)),
         'min': float(np.min(p_scores)),
-        'max': float(np.max(p_scores))
+        'max': float(np.max(p_scores)),
+        'sum': float(np.sum(p_scores))
     }
 
 def main():

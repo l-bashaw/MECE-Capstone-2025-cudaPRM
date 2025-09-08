@@ -88,57 +88,12 @@ def set_robot_state(robot, state):
 
 def main():
 
-    # # planning -----------------------------------------------------------------------
-    # device = 'cuda'
-    # dtype = torch.float32
-    # env_config_file = "/home/lenman/capstone/parallelrm/resources/scenes/environment/multigoal_demo.yaml"  
-    # model_path = "/home/lenman/capstone/parallelrm/resources/models/percscore-nov12-50k.pt"
-    # seed = 22363387
-    # source_node = 78  
-    # target_node = 657
-    
-    # print("Loading environment and model...")
-    # env_loader = EnvironmentLoader(device=device)
-    # model_loader = ModelLoader(label_size=3, max_batch_size=10000, use_trt=True)
-    # env = env_loader.load_world(env_config_file)
-    # env['bounds'] = torch.concat([env['bounds'], torch.tensor([[-3.14159, 0.0, 0.0], [3.14159, 0.0, 0.0]], dtype=dtype, device=device)], dim=1)
-    
-    # # Cup
-    # env['object_pose'] = torch.tensor([-0.5, 2.5, 0.7, 0.0, 0.0, 0.7071068, -0.7071068], dtype=dtype, device=device)
-    # env['object_label'] = torch.tensor([0.0, 0.0, 1.0], dtype=dtype, device=device)
-    
-    # model = model_loader.load_model(model_path)
-    
-    # print("Starting testing...\n")
-    # start_time = time.time()
-    # prm = PSPRM(model, env)
-    # prm.build_prm(seed)   # graph attributes 'x', 'y', 'theta', 'pan', 'tilt'
-    # #print(prm.graph.nodes(data=True))
-    
-    # path = prm.a_star_search(source_node, target_node, alpha=.2, beta=1)
-    # end_time = time.time()
-    # print(f"Path planning completed in {end_time - start_time:.3f} seconds")
-
-    # t2 = time.time()
-    # sol = Solution(path)
-    # trajectory = sol.generate_trajectory(prm.graph)
-    # t3 = time.time()
-    # print(f"Trajectory generation completed in {t3 - t2:.3f} seconds\n")
-
     # Simulation -----------------------------------------------------------------------
 
-    # Robot and envuronment paths
+    # Robot and environment paths
     file_path = "resources/robots/stretch/stretch.urdf"
-    # yaml_path = "resources/scenes/environment/multigoal_demo.yaml"
-    yaml_path = "resources/scenes/environment/replanning_test_env.yaml"
+    yaml_path = "resources/scenes/environment/multigoal_demo.yaml"
 
-
-    # param_file = "resources/robots/stretch/robot_params.yaml"
-    # monitoring_object = "cup"
-
-    # Plan data
-    # states_yaml = args.plan_data
-    # trajectories_yaml = args.traj_data
     
     # Initialize the world
     world = World()
@@ -190,8 +145,8 @@ def main():
     robot = world.scene.add(robot_prim)
     world.reset()
     world.step(render=True)
-    print(robot.dof_names)
-    print(robot_prim.dof_properties)
+    # print(robot.dof_names)
+    # print(robot_prim.dof_properties)
     
 
     ################# Set the camera #################
@@ -266,8 +221,8 @@ def main():
             active_sleep(1)
             t -= 1
 
-    while True:
-        world.step(render=True)
+    # while True:
+    #     world.step(render=True)
 
     
 

@@ -18,6 +18,8 @@ class EnvironmentLoader:
         self.rectangles = []
         self.circles = []
         self.bounds = None
+        self.map = {}
+
         
     def load_world(self, config_file: str, bounds: Optional[List[List[float]]] = None, verbose=False) -> Dict:
         """
@@ -43,6 +45,8 @@ class EnvironmentLoader:
         self.circles = []
         
         # Process each collision object
+        c = 0
+        r = 0
         for cc_object_name, cc_object in self.cc_objects.items():
             if verbose:
                 print(f"Processing object: {cc_object_name}")
@@ -88,8 +92,12 @@ class EnvironmentLoader:
                 bbox_3d = mesh.bounds
                 
                 # Convert to 2D representation
-                self._process_object_to_2d(cc_object_name, bbox_3d, cc_object, rotation, dimensions, verbose)
-                
+                self._process_object_to_2d(cc_object_name, bbox_3d, cc_object, rotation, dimensions, verbose, c, r)
+                if cc_object["representation"] == "circle":
+                    c += 1
+                else:
+                    r += 1
+
             except Exception as e:
                 print(f"  Error processing {cc_object_name}: {e}")
                 print(f"  Creating bounding box from dimensions and position...")
@@ -104,7 +112,7 @@ class EnvironmentLoader:
         # Convert to PyTorch format
         return self._create_pytorch_environment()
     
-    def _process_object_to_2d(self, object_name: str, bbox_3d, cc_object: Dict, rotation: List[float], dimensions: List[float], verbose):
+    def _process_object_to_2d(self, object_name: str, bbox_3d, cc_object: Dict, rotation: List[float], dimensions: List[float], verbose, c, r):
         """Process 3D bounding box to 2D representation."""
         # bbox_3d is a (2, 3) array with min and max bounds
         min_bound = bbox_3d[0]
@@ -124,11 +132,13 @@ class EnvironmentLoader:
         if self._should_be_circle(width, height, object_name):
             radius = max(width, height) / 2
             self.circles.append([center_x, center_y, radius])
+            self.map[object_name] = (c)
             if verbose:
                 print(f"  Added as circle: center=({center_x:.2f}, {center_y:.2f}), radius={radius:.2f}")
         else:
             # Store as [x, y, height, width] for consistency
             self.rectangles.append([center_x, center_y, height, width])
+            self.map[object_name] = (r)
             if verbose:
                 print(f"  Added as rectangle: center=({center_x:.2f}, {center_y:.2f}), size=({height:.2f}x{width:.2f})")
         
@@ -245,7 +255,6 @@ class EnvironmentLoader:
             )
         else:
             env['circles'] = torch.empty((0, 3), dtype=torch.float32, device=self.device)
-        
         return env
     
     def visualize_environment(self, env: Dict, figsize: Tuple[int, int] = (10, 8), 

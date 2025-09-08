@@ -312,9 +312,14 @@ def main():
     env = env_loader.load_world(env_config_file)
     env['bounds'] = torch.concat([env['bounds'], torch.tensor([[-3.14159, 0.0, 0.0], [3.14159, 0.0, 0.0]], dtype=dtype, device=device)], dim=1)
 
-    # Cup
-    env['object_pose'] = torch.tensor([-0.5, 2.5, 0.7, 0.0, 0.0, 0.7071068, -0.7071068], dtype=dtype, device=device)
-    env['object_label'] = torch.tensor([0.0, 0.0, 1.0], dtype=dtype, device=device)
+    # label_map = {
+    #   "human": [1, 0, 0],
+    #   "monitor": [0, 1, 0],
+    #   "cup": [0, 0, 1]
+    # }
+
+    env['object_pose'] = torch.tensor([0.2, -0.2, 1.65, 0.0, 0, 0.707, .707], dtype=dtype, device=device)
+    env['object_label'] = torch.tensor([1.0, 0.0, 0.0], dtype=dtype, device=device)
     env['bounds'][0, 0] = -1.5
     env['bounds'][1, 0] = 4
     env['bounds'][0, 1] = -4
@@ -343,26 +348,27 @@ def main():
 
         trajectory = sol.generate_trajectory_rsplan(prm, turning_radius=1)
         trajectory = sol.project_trajectory(env['object_pose'])
+        print("Generated trajectory with %d points" % trajectory.shape[0])
         print(type(trajectory))  # np.ndarray
         t2 = time.time()
         print(f"Time: {t2 - t1:.4f} seconds")
 
     sol.print_path(prm.graph)
-    np.savetxt("./test_trajectory.csv", trajectory, delimiter=",")
-    fig = visualize_environment_and_path(env, prm, path, trajectory, st, go, animation_speed=100)
-    plt.show()
+    # np.savetxt("./test_trajectory.csv", trajectory, delimiter=",")
+    # fig = visualize_environment_and_path(env, prm, path, trajectory, st, go, animation_speed=100)
+    # plt.show()
 
     plot_environment_with_heatmap(prm.graph, env['bounds'].cpu().numpy(), resolution=200)
     
     
-    # Save animation as video if present
-    if hasattr(fig, 'animation'):
-        fig.animation.save('./prm_animation.gif', writer='ffmpeg', fps=30)
-        print("Animation saved as 'prm_animation.gif'")
-    else:
-        # If no animation, save static image
-        fig.savefig('./prm_visualization.png', dpi=300, bbox_inches='tight')
-        print("Visualization saved as 'prm_visualization.png'")
+    # # Save animation as video if present
+    # if hasattr(fig, 'animation'):
+    #     fig.animation.save('./prm_animation.gif', writer='ffmpeg', fps=30)
+    #     print("Animation saved as 'prm_animation.gif'")
+    # else:
+    #     # If no animation, save static image
+    #     fig.savefig('./prm_visualization.png', dpi=300, bbox_inches='tight')
+    #     print("Visualization saved as 'prm_visualization.png'")
     
 
 if __name__ == "__main__":
