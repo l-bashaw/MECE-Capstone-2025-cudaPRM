@@ -4,7 +4,7 @@ import time
 import websocket
 from ros_bridge import pose_receiver as pr
 from ros_bridge import trajectory_publisher as tp
-
+from scipy.spatial.transform import Rotation as R
 import time
 import torch
 import numpy as np
@@ -155,36 +155,57 @@ def generate_trajectory(env, start, goal):
     trajectory = trajectory[:, [3, 4, 0, 1, 2]]
     return trajectory
 
+def quaternion_angle(q1, q2):
+ 
+    q1 = q1 / np.linalg.norm(q1)
+    q2 = q2 / np.linalg.norm(q2)
+    
+    q_rel = R.from_quat(q1).inv() * R.from_quat(q2)
+    
+    return q_rel.magnitude()
+
 def need_to_replan(initial_env, current_env):
 
-    # return False
 
     if initial_env['rectangles'].numel() > 0 and initial_env['circles'].numel() > 0:
         for ri, rc, ci, cc in zip(initial_env['rectangles'].cpu(), current_env['rectangles'].cpu(), initial_env['circles'].cpu(), current_env['circles'].cpu()):
-            if (np.linalg.norm(rc - ri) > REPLANNING_THRESHOLD) or (np.linalg.norm(cc - ci) > REPLANNING_THRESHOLD):
-                # print("REPLANNING")
-                return True
-    # If rectangles is empty tensor or none
-    elif initial_env['rectangles'] is None or initial_env['rectangles'].numel() == 0:
-        for ci, cc in zip(initial_env['circles'].cpu(), current_env['circles'].cpu()):
-            # print(np.linalg.norm(cc - ci))
-            # Implement the norm from scratch
-            # norm = (cc[0] - ci[0])
-            if (np.linalg.norm(cc - ci) > REPLANNING_THRESHOLD):
-                # print("REPLANNING")
-                return True
-    elif initial_env['circles'] is None or initial_env['circles'].numel() == 0:
-        for ri, rc in zip(initial_env['rectangles'].cpu(), current_env['rectangles'].cpu()):
-            if (np.linalg.norm(rc - ri) > REPLANNING_THRESHOLD):
-                # print("REPLANNING")
+            
+            norm_c = np.linalg.norm(cc[:2] - ci[:2])
+            norm_r = np.linalg.norm(rc[:2] - ri[:2])
+            if (norm_r > REPLANNING_THRESHOLD) or (norm_c > REPLANNING_THRESHOLD):
                 return True
             
+
+    elif initial_env['rectangles'] is None or initial_env['rectangles'].numel() == 0:
+        for ci, cc in zip(initial_env['circles'].cpu(), current_env['circles'].cpu()):
+            
+            # Use x, y only, not radius
+            norm = np.linalg.norm(cc[:2] - ci[:2])
+            if (norm > REPLANNING_THRESHOLD):
+                return True
+            
+
+    elif initial_env['circles'] is None or initial_env['circles'].numel() == 0:
+        for ri, rc in zip(initial_env['rectangles'].cpu(), current_env['rectangles'].cpu()):
+            
+            norm = np.linalg.norm(rc[:2] - ri[:2])
+            if (norm > REPLANNING_THRESHOLD):
+                return True
+            
+
     if initial_env['object_pose'].numel() > 0 and current_env['object_pose'].numel() > 0:
-        print(np.linalg.norm(current_env['object_pose'][3:].cpu() - initial_env['object_pose'][3:].cpu()))
-        if (np.linalg.norm(current_env['object_pose'][3:].cpu() - initial_env['object_pose'][3:].cpu()) > REPLANNING_THRESHOLD*2):
-            # print("REPLANNING")
+        cur_q = current_env['object_pose'][3:].cpu().numpy()
+        init_q = initial_env['object_pose'][3:].cpu().numpy()
+        ang = quaternion_angle(cur_q, init_q)
+        # print("quat angle diff (rad):", ang)
+
+        norm = np.linalg.norm(current_env['object_pose'][:2].cpu().numpy() - initial_env['object_pose'][:2].cpu().numpy())
+        if ang > 0.1 or norm > REPLANNING_THRESHOLD:
             return True
+        
     return False
+
+
 
 def main():
 
@@ -215,14 +236,11 @@ def main():
     traj = generate_trajectory(env, start, goal)
     # print_env_and_trajectory(env, traj)
 
-    # print(traj[:5])
-    # print()
-    # print(traj[-5:])
     tp.publish_trajectory(ws, traj)
     
     replan = False
     # Set t_restart to yesterday so that it replans immediately
-    t_restart = time.time() - 24 * 60 * 60
+    # t_restart = time.time() - 24 * 60 * 60
 
     while True:
         poses, names = pr.get_latest_poses_and_names()
@@ -230,28 +248,28 @@ def main():
             update_env_from_stream(env, poses, names)
 
         replan = need_to_replan(initial_env=base_env, current_env=env)
-        # print(f"Current object pose: {env['object_pose']}")
+
         if replan:
-            # if time.time() - t_restart < 2:
-            #     replan = False
-            #     continue
+            
             print("Replanning...")
             poses, names = pr.get_latest_poses_and_names()
-            
             start = get_robot_state(poses, names)
+            
             if start is None:
                 print("Robot not found, skipping replanning.")
                 continue
+
             update_env_from_stream(env, poses, names)
-            
             traj = generate_trajectory(env, start, goal)
-            # print_env_and_trajectory(env, traj)
 
             tp.publish_trajectory(ws, traj)
-            t_restart = time.time()
-            for k, v in env.items():
-                base_env[k] = v.clone() if isinstance(v, torch.Tensor) else v
+
+            base_env = {k: v.clone() if isinstance(v, torch.Tensor) else v for k, v in env.items()}
             replan = False
+
+            print(f"After replanning - base object_pose: {base_env['object_pose']}")
+            print(f"After replanning - env  object_pose: {env['object_pose']}")
+            print(f"They are equal: {torch.equal(base_env['object_pose'], env['object_pose'])}")
 
 if __name__ == "__main__":
     main()
