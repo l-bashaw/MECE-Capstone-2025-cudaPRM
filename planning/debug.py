@@ -296,14 +296,14 @@ def plot_environment_with_heatmap(graph, bounds, resolution=100):
 def main():
     device = 'cuda'
     dtype = torch.float32
-    env_config_file = "/home/lb73/cudaPRM/planning/resources/scenes/environment/multigoal_demo.yaml"  
+    env_config_file = "/home/lb73/cudaPRM/planning/resources/scenes/environment/replanning_test_env.yaml"  
     model_path = "/home/lb73/cudaPRM/planning/resources/models/percscore-nov12-50k.pt"
     seed = 2387
     
 
     # make start and goal tensors
-    start = np.array([0.5, -3, 3.14159/2, 0.0, 0.0]) 
-    goal = np.array([2.5, 2.5, -3.14159, 0.0, 0.0])
+    start = np.array([1, -3, 3.14159/2, 0.0, 0.0]) 
+    goal = np.array([1, 2.5, 3.14159/2, 0.0, 0.0])
     
 
     print("Loading environment and model...")
@@ -318,7 +318,7 @@ def main():
     #   "cup": [0, 0, 1]
     # }
 
-    env['object_pose'] = torch.tensor([0.2, -0.2, 1.65, 0.0, 0, 0.707, .707], dtype=dtype, device=device)
+    env['object_pose'] = torch.tensor([1.2, 0.0, 1.65, 0, 0, .707, -.707], dtype=dtype, device=device)
     env['object_label'] = torch.tensor([1.0, 0.0, 0.0], dtype=dtype, device=device)
     env['bounds'][0, 0] = -1.5
     env['bounds'][1, 0] = 4
@@ -326,9 +326,8 @@ def main():
     env['bounds'][1, 1] = 4
     model = model_loader.load_model(model_path)
 
-    
-    prm = PSPRM(model, env)
     for i in range(5):
+        prm = PSPRM(model, env)
         t1 = time.time()
         prm.build_prm(seed)                                           # graph attributes 'x', 'y', 'theta', 'pan', 'tilt'
         st, go = prm.addStartAndGoal(start, goal)  # returns start_id, goal_id
@@ -342,9 +341,9 @@ def main():
         # print(sg_params['start'][0])
         # print(sg_params['goal'][0])
 
-        path = prm.a_star_search(start_id=st, goal_id=go, alpha=0, beta=1)
+        path = prm.a_star_search(start_id=st, goal_id=go, alpha=0.4, beta=.2)
         sol = Solution(path)
-        sol.simplify(prm, env, max_skip_dist=4)
+        sol.simplify(prm, env, max_skip_dist=2)
 
         trajectory = sol.generate_trajectory_rsplan(prm, turning_radius=1)
         trajectory = sol.project_trajectory(env['object_pose'])
@@ -354,9 +353,9 @@ def main():
         print(f"Time: {t2 - t1:.4f} seconds")
 
     sol.print_path(prm.graph)
-    # np.savetxt("./test_trajectory.csv", trajectory, delimiter=",")
-    # fig = visualize_environment_and_path(env, prm, path, trajectory, st, go, animation_speed=100)
-    # plt.show()
+    np.savetxt("./test_trajectory.csv", trajectory, delimiter=",")
+    fig = visualize_environment_and_path(env, prm, path, trajectory, st, go, animation_speed=100)
+    plt.show()
 
     plot_environment_with_heatmap(prm.graph, env['bounds'].cpu().numpy(), resolution=200)
     

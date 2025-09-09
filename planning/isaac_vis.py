@@ -92,7 +92,7 @@ def main():
 
     # Robot and environment paths
     file_path = "resources/robots/stretch/stretch.urdf"
-    yaml_path = "resources/scenes/environment/multigoal_demo.yaml"
+    yaml_path = "resources/scenes/environment/replanning_test_env.yaml"
 
     
     # Initialize the world

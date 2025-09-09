@@ -1,11 +1,12 @@
 import torch
 import rsplan
 import numpy as np
+from utils.BatchFK import BatchFk
 import networkx as nx
 import pytorch_kinematics as pk
 
 import cuPRM
-from scipy.interpolate import make_interp_spline, CubicHermiteSpline
+# from scipy.interpolate import make_interp_spline, CubicHermiteSpline
 
 # Each PSPRM instance has an associated model that it uses and environment that it represents,
 # as well as a graph that it builds based on the environment.
@@ -22,7 +23,11 @@ class PSPRM:
             'edges': None, 
             'edge_validity': None
         }
-        
+
+        self.urdf_path = "resources/robots/stretch/stretch.urdf"
+        self.ee_link_name = 'camera_color_optical_frame_rotated'
+        self.device = 'cuda'
+        self.bfk = BatchFk(self.urdf_path, self.ee_link_name, device=self.device, batch_size = 1500)
 
     def build_prm(self, seed):
         
@@ -43,9 +48,14 @@ class PSPRM:
         self.tensors['edge_validity'] = edge_validity
 
         neighbors = torch.where(edge_validity, neighbors, -1)  # Replace invalid neighbors with -1
-        diffs = self.project_nodesFIX3(nodes, object_pose_world)    # Project nodes and return diffs (difference between camera pose and object pose at each node)
-        diffs = torch.cat((diffs, obj_label.unsqueeze(0).repeat(nodes.shape[0], 1)), dim=1)
-        p_scores = self.model(diffs)
+        _ = self.project_nodesFIX3(nodes, object_pose_world)    # Project nodes 
+
+        # cam_mat = self.project_nodesFIX3(nodes, object_pose_world)
+        
+
+
+        model_input = self.create_model_input(nodes, object_pose_world, obj_label)
+        p_scores = self.model(model_input)
         # print(f"Max score: {p_scores.max().item():.4f}, Min score: {p_scores.min().item():.4f}, Mean score: {p_scores.mean().item():.4f}")
         self.graph = self.tensors_to_networkx(nodes, neighbors, p_scores)
         return 
@@ -118,6 +128,10 @@ class PSPRM:
             tgt = np.array([self.graph.nodes[nid]['x'], self.graph.nodes[nid]['y'], self.graph.nodes[nid]['theta']])
             weight = np.linalg.norm(src - tgt)
             self.graph.add_edge(goal_id, nid, weight=weight)
+
+        # Print edges for start and goal
+        # print("Start edges:", list(self.graph.edges(start_id, data=True)))
+        # print("Goal edges:", list(self.graph.edges(goal_id, data=True)))
         return start_id, goal_id
 
         # # Connect edges for start
@@ -141,7 +155,41 @@ class PSPRM:
         # return {'start': [start_state, start_neighbors, start_edges, start_valid_edges],
         #         'goal': [goal_state, goal_neighbors, goal_edges, goal_valid_edges]}
 
+    def create_model_input(self, nodes, object_pose, label):
+       
+       
+        camera_positions, camera_quaternions, camera_matrices = self.bfk.batch_fk(nodes)
+        model_input_tensor = torch.empty((self.bfk.batch_size, 10), dtype=torch.float32).to(torch.device("cuda"))
+        object_matrix = self.bfk.pose_to_transformation_matrix(object_pose)
+        pose_list_tensor = self.bfk.transform_poses_batch(camera_matrices, object_matrix)
+        # insert the label
+        num_poses = pose_list_tensor.shape[0]
+        model_input_tensor[:num_poses, :7] = pose_list_tensor[:num_poses]
+        model_input_tensor[:, 7:] = label
+        return model_input_tensor
         
+        
+        
+        
+        
+        
+        
+        object_matrix = self.pose_to_transformation_matrix(object_pose)
+        pose_list_tensor = self.transform_poses_batch(camera_matrices, object_matrix)
+        # camera_positions_cpu = camera_positions.cpu().numpy()
+        model_input_tensor = torch.empty((nodes.shape[0], 10), dtype=torch.float32).to(torch.device("cuda"))
+     
+        object_matrix = self.pose_to_transformation_matrix(object_pose)
+        pose_list_tensor = self.transform_poses_batch(camera_matrices, object_matrix)
+
+        # insert the label
+        num_poses = min(pose_list_tensor.shape[0], model_input_tensor.shape[0])
+        model_input_tensor[:num_poses, :7] = pose_list_tensor[:num_poses]
+        model_input_tensor[:, 7:] = label
+
+        return model_input_tensor
+    
+
     def project_nodesFIX3(self, nodes, object_pose_world):
         """
         Calculate pan and tilt angles for robot states to look at target object,
@@ -207,62 +255,65 @@ class PSPRM:
         # Save into nodes
         nodes[:, 3] = pan
         nodes[:, 4] = tilt
-
-        # --- Apply pan/tilt to camera transform ---
-        def make_pan_tilt_transform(pan, tilt, dtype, device):
-            B = pan.shape[0]
-            T = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
-
-            # Pan: rotation around Y
-            cos_p, sin_p = torch.cos(pan), torch.sin(pan)
-            R_pan = torch.stack([
-                torch.stack([ cos_p, torch.zeros_like(pan), sin_p], dim=1),
-                torch.stack([ torch.zeros_like(pan), torch.ones_like(pan), torch.zeros_like(pan)], dim=1),
-                torch.stack([-sin_p, torch.zeros_like(pan), cos_p], dim=1)
-            ], dim=1)
-
-            # Tilt: rotation around X
-            cos_t, sin_t = torch.cos(tilt), torch.sin(tilt)
-            R_tilt = torch.stack([
-                torch.stack([ torch.ones_like(tilt), torch.zeros_like(tilt), torch.zeros_like(tilt)], dim=1),
-                torch.stack([ torch.zeros_like(tilt), cos_t, -sin_t], dim=1),
-                torch.stack([ torch.zeros_like(tilt), sin_t,  cos_t], dim=1)
-            ], dim=1)
-
-            R = torch.bmm(R_tilt, R_pan)  # tilt ∘ pan
-            T[:, :3, :3] = R
-            return T
-
-        T_cam_base_cam = make_pan_tilt_transform(pan, tilt, dtype, device)
-        T_world_cam = torch.bmm(T_world_cam_base, T_cam_base_cam)
-        T_cam_world = torch.inverse(T_world_cam)
-
-        # --- Now compute full relative pose including object orientation ---
+        # print(pan[:5])
+        # print(tilt[:5])
+        return T_cam_base_world
         
-        # Create object transform in world frame
-        object_pos = object_pose_world[:3]
-        object_quat = object_pose_world[3:7]  # [qx, qy, qz, qw]
-        object_rot_matrix = pk.quaternion_to_matrix(object_quat.unsqueeze(0)).squeeze(0)  # [3, 3]
-        
-        # Object transform in world frame
-        T_world_object = torch.eye(4, dtype=dtype, device=device)
-        T_world_object[:3, :3] = object_rot_matrix
-        T_world_object[:3, 3] = object_pos
-        T_world_object = T_world_object.unsqueeze(0).expand(B, -1, -1)  # [B, 4, 4]
+        # # --- Apply pan/tilt to camera transform ---
+        # def make_pan_tilt_transform(pan, tilt, dtype, device):
+        #     B = pan.shape[0]
+        #     T = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
 
-        # Object pose in camera frame
-        T_cam_object = torch.bmm(T_cam_world, T_world_object)
-        
-        # Extract relative position (object position in camera frame)
-        obj_pos_in_cam = T_cam_object[:, :3, 3]  # [B, 3]
-        
-        # Extract relative orientation (object orientation in camera frame)
-        obj_rot_in_cam = T_cam_object[:, :3, :3]  # [B, 3, 3]
-        obj_quat_in_cam = pk.matrix_to_quaternion(obj_rot_in_cam)  # [B, 4]
+        #     # Pan: rotation around Y
+        #     cos_p, sin_p = torch.cos(pan), torch.sin(pan)
+        #     R_pan = torch.stack([
+        #         torch.stack([ cos_p, torch.zeros_like(pan), sin_p], dim=1),
+        #         torch.stack([ torch.zeros_like(pan), torch.ones_like(pan), torch.zeros_like(pan)], dim=1),
+        #         torch.stack([-sin_p, torch.zeros_like(pan), cos_p], dim=1)
+        #     ], dim=1)
 
-        # Final diffs: [relative_position, relative_orientation]
-        diffs = torch.cat([obj_pos_in_cam, obj_quat_in_cam], dim=1)  # [B, 7]
-        return diffs
+        #     # Tilt: rotation around X
+        #     cos_t, sin_t = torch.cos(tilt), torch.sin(tilt)
+        #     R_tilt = torch.stack([
+        #         torch.stack([ torch.ones_like(tilt), torch.zeros_like(tilt), torch.zeros_like(tilt)], dim=1),
+        #         torch.stack([ torch.zeros_like(tilt), cos_t, -sin_t], dim=1),
+        #         torch.stack([ torch.zeros_like(tilt), sin_t,  cos_t], dim=1)
+        #     ], dim=1)
+
+        #     R = torch.bmm(R_tilt, R_pan)  # tilt ∘ pan
+        #     T[:, :3, :3] = R
+        #     return T
+
+        # T_cam_base_cam = make_pan_tilt_transform(pan, tilt, dtype, device)
+        # T_world_cam = torch.bmm(T_world_cam_base, T_cam_base_cam)
+        # T_cam_world = torch.inverse(T_world_cam)
+
+        # # --- Now compute full relative pose including object orientation ---
+        
+        # # Create object transform in world frame
+        # object_pos = object_pose_world[:3]
+        # object_quat = object_pose_world[3:7]  # [qx, qy, qz, qw]
+        # object_rot_matrix = pk.quaternion_to_matrix(object_quat.unsqueeze(0)).squeeze(0)  # [3, 3]
+        
+        # # Object transform in world frame
+        # T_world_object = torch.eye(4, dtype=dtype, device=device)
+        # T_world_object[:3, :3] = object_rot_matrix
+        # T_world_object[:3, 3] = object_pos
+        # T_world_object = T_world_object.unsqueeze(0).expand(B, -1, -1)  # [B, 4, 4]
+
+        # # Object pose in camera frame
+        # T_cam_object = torch.bmm(T_cam_world, T_world_object)
+        
+        # # Extract relative position (object position in camera frame)
+        # obj_pos_in_cam = T_cam_object[:, :3, 3]  # [B, 3]
+        
+        # # Extract relative orientation (object orientation in camera frame)
+        # obj_rot_in_cam = T_cam_object[:, :3, :3]  # [B, 3, 3]
+        # obj_quat_in_cam = pk.matrix_to_quaternion(obj_rot_in_cam)  # [B, 4]
+
+        # # Final diffs: [relative_position, relative_orientation]
+        # diffs = torch.cat([obj_pos_in_cam, obj_quat_in_cam], dim=1)  # [B, 7]
+        # return diffs
 
     def project_nodesFIX2(self, nodes, object_pose_world):
         """
@@ -400,180 +451,7 @@ class PSPRM:
         diffs = torch.cat([obj_in_cam, relative_quat], dim=1)  # [B, 7]
         return diffs
 
-    # def project_nodes(self, nodes, object_pose_world):
-    #     """
-    #     Calculate pan and tilt angles for robot states to look at target object,
-    #     then compute camera poses and diffs from object.
-    #     """
-    #     device = nodes.device
-    #     dtype = nodes.dtype
-    #     B = nodes.shape[0]
-        
-    #     # Camera configuration (same as original script)
-    #     cam_pos_robot = torch.tensor([0.0450, 0.0523, 1.2607], dtype=dtype, device=device)
-    #     cam_rot_robot = torch.tensor(
-    #         [[0.0, 0.0, 1.0],
-    #         [1.0, 0.0, 0.0],
-    #         [0.0, 1.0, 0.0]], dtype=dtype, device=device
-    #     )
-        
-    #     # Extract robot states from nodes
-    #     robot_states = nodes[:, :3]  # [x, y, theta]
 
-    #     # Prepare object position in homogeneous coordinates
-    #     object_pos_world_h = torch.cat([object_pose_world[:3], torch.ones(1, dtype=dtype, device=device)])
-    #     object_pos_world_h = object_pos_world_h.unsqueeze(0).expand(B, -1)
-        
-    #     # Create batched camera base transforms in robot frame
-    #     T_robot_camera_base = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
-    #     T_robot_camera_base[:, :3, :3] = cam_rot_robot.unsqueeze(0).repeat(B, 1, 1)
-    #     T_robot_camera_base[:, :3, 3] = cam_pos_robot.unsqueeze(0).repeat(B, 1)
-        
-    #     # Build robot base-to-world transforms
-    #     cos_theta = torch.cos(robot_states[:, 2])
-    #     sin_theta = torch.sin(robot_states[:, 2])
-        
-    #     T_world_robot = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
-    #     T_world_robot[:, 0, 0] = cos_theta
-    #     T_world_robot[:, 0, 1] = -sin_theta
-    #     T_world_robot[:, 1, 0] = sin_theta
-    #     T_world_robot[:, 1, 1] = cos_theta
-    #     T_world_robot[:, 0, 3] = robot_states[:, 0]
-    #     T_world_robot[:, 1, 3] = robot_states[:, 1]
-        
-    #     # Camera base pose in world
-    #     T_world_cam_base = torch.bmm(T_world_robot, T_robot_camera_base)
-        
-    #     # Invert camera transforms and transform object to camera frame, calculate pan/tilt
-    #     T_cam_base_world = torch.inverse(T_world_cam_base)
-    #     obj_in_cam = torch.bmm(T_cam_base_world, object_pos_world_h.unsqueeze(-1)).squeeze(-1)[:, :3]
-    #     dx, dy, dz = obj_in_cam[:, 0], obj_in_cam[:, 1], obj_in_cam[:, 2]
-    #     pan = torch.atan2(dx, dz)
-    #     tilt = torch.atan2(dy, torch.sqrt(dx**2 + dz**2))
-    #     # Pan bounds are [-3.9, 1.5]
-    #     # Tilt bounds are [-1.53, 0.79]
-    #     pan = torch.clamp(pan, -3.9, 1.5)
-    #     tilt = torch.clamp(tilt, -1.53, 0.79)
-       
-    #     # Modify nodes in place with calculated pan and tilt
-    #     nodes[:, 3] = pan  
-    #     nodes[:, 4] = tilt  
-        
-    #     # Compute the relative orientation as a quaternion
-    #     R_cam_base_world = T_cam_base_world[:, :3, :3]
-    #     obj_quat_in_cam = pk.matrix_to_quaternion(R_cam_base_world)
-
-    #     diffs = torch.cat([obj_in_cam, obj_quat_in_cam], dim=1)  # Shape: [B, 7]
-    #     return diffs
-    
-    # def project_nodesFIX(self, nodes, object_pose_world):
-    #     """
-    #     Calculate pan and tilt angles for robot states to look at target object,
-    #     update camera transforms with pan/tilt, and compute diffs.
-    
-    #     Args:
-    #         nodes: Tensor [B, 5] = (x, y, theta, pan, tilt)
-    #         object_pose_world: Tensor [3] = object xyz in world
-    
-    #     Returns:
-    #         diffs: [B, 7] = (object xyz in cam frame, cam orientation quat)
-    #     """
-    #     # print(f"Projecting to {object_pose_world}")
-
-    #     device = nodes.device
-    #     dtype = nodes.dtype
-    #     B = nodes.shape[0]
-    
-    #     # Camera mount config (robot -> camera base)
-    #     cam_pos_robot = torch.tensor([0.0450, 0.0523, 1.2607], dtype=dtype, device=device)
-    #     cam_rot_robot = torch.tensor(
-    #         [[0.0, 0.0, 1.0],
-    #         [1.0, 0.0, 0.0],
-    #         [0.0, 1.0, 0.0]], dtype=dtype, device=device
-    #     )
-    
-    #     # Extract robot states
-    #     robot_states = nodes[:, :3]  # [x, y, theta]
-    
-    #     # Object position homogeneous
-    #     object_pos_world_h = torch.cat([object_pose_world[:3], torch.ones(1, dtype=dtype, device=device)])
-    #     object_pos_world_h = object_pos_world_h.unsqueeze(0).expand(B, -1)
-    
-    #     # Camera base in robot frame
-    #     T_robot_camera_base = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
-    #     T_robot_camera_base[:, :3, :3] = cam_rot_robot.unsqueeze(0).repeat(B, 1, 1)
-    #     T_robot_camera_base[:, :3, 3] = cam_pos_robot.unsqueeze(0).repeat(B, 1)
-    
-    #     # Robot -> world
-    #     cos_theta = torch.cos(robot_states[:, 2])
-    #     sin_theta = torch.sin(robot_states[:, 2])
-    #     T_world_robot = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
-    #     T_world_robot[:, 0, 0] = cos_theta
-    #     T_world_robot[:, 0, 1] = -sin_theta
-    #     T_world_robot[:, 1, 0] = sin_theta
-    #     T_world_robot[:, 1, 1] = cos_theta
-    #     T_world_robot[:, 0, 3] = robot_states[:, 0]
-    #     T_world_robot[:, 1, 3] = robot_states[:, 1]
-    
-    #     # Camera base in world
-    #     T_world_cam_base = torch.bmm(T_world_robot, T_robot_camera_base)
-    
-    #     # Object in camera base frame (before pan/tilt)
-    #     T_cam_base_world = torch.inverse(T_world_cam_base)
-    #     obj_in_cam_base = torch.bmm(T_cam_base_world, object_pos_world_h.unsqueeze(-1)).squeeze(-1)[:, :3]
-    #     dx, dy, dz = obj_in_cam_base[:, 0], obj_in_cam_base[:, 1], obj_in_cam_base[:, 2]
-    
-    #     # Pan/tilt calculation
-    #     pan = torch.atan2(dx, dz)
-    #     tilt = torch.atan2(dy, torch.sqrt(dx**2 + dz**2))
-    #     pan = torch.clamp(pan, -3.9, 1.5)
-    #     tilt = torch.clamp(tilt, -1.53, 0.79)
-    
-    #     # Save into nodes
-    #     nodes[:, 3] = pan
-    #     nodes[:, 4] = tilt
-    
-    #     # --- Apply pan/tilt to camera transform ---
-    #     def make_pan_tilt_transform(pan, tilt, dtype, device):
-    #         B = pan.shape[0]
-    #         T = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
-
-    #         # Pan: rotation around Y
-    #         cos_p, sin_p = torch.cos(pan), torch.sin(pan)
-    #         R_pan = torch.stack([
-    #             torch.stack([ cos_p, torch.zeros_like(pan), sin_p], dim=1),
-    #             torch.stack([ torch.zeros_like(pan), torch.ones_like(pan), torch.zeros_like(pan)], dim=1),
-    #             torch.stack([-sin_p, torch.zeros_like(pan), cos_p], dim=1)
-    #         ], dim=1)
-
-    #         # Tilt: rotation around X
-    #         cos_t, sin_t = torch.cos(tilt), torch.sin(tilt)
-    #         R_tilt = torch.stack([
-    #             torch.stack([ torch.ones_like(tilt), torch.zeros_like(tilt), torch.zeros_like(tilt)], dim=1),
-    #             torch.stack([ torch.zeros_like(tilt), cos_t, -sin_t], dim=1),
-    #             torch.stack([ torch.zeros_like(tilt), sin_t,  cos_t], dim=1)
-    #         ], dim=1)
-
-    #         R = torch.bmm(R_tilt, R_pan)  # tilt ∘ pan
-    #         T[:, :3, :3] = R
-    #         return T
-
-    #     T_cam_base_cam = make_pan_tilt_transform(pan, tilt, dtype, device)
-    #     T_world_cam = torch.bmm(T_world_cam_base, T_cam_base_cam)
-    #     T_cam_world = torch.inverse(T_world_cam)
-    
-    #     # Object in true camera frame
-    #     obj_in_cam = torch.bmm(T_cam_world, object_pos_world_h.unsqueeze(-1)).squeeze(-1)[:, :3]
-    
-    #     # Camera orientation as quaternion
-    #     R_cam_world = T_cam_world[:, :3, :3]
-    #     obj_quat_in_cam = pk.matrix_to_quaternion(R_cam_world)
-    
-    #     # Final diffs
-    #     diffs = torch.cat([obj_in_cam, obj_quat_in_cam], dim=1)  # [B, 7]
-    #     return diffs
-
-    
     def tensors_to_networkx(self, nodes_tensor, neighbors_tensor, scores_tensor):
         if nodes_tensor.device.type == 'cuda':
             nodes = nodes_tensor.cpu().numpy()
@@ -603,8 +481,13 @@ class PSPRM:
         src_positions = nodes[source_indices, :3]  # Shape: (num_edges, 2)  #change to 3 for 3D
         tgt_positions = nodes[target_indices, :3]  # Shape: (num_edges, 2)
         # print(f"Source positions shape: {src_positions.shape}, Target positions shape: {tgt_positions.shape}")
-        weights = np.linalg.norm(src_positions - tgt_positions, axis=1)  
-        
+        # get average of src and target scores
+        src_scores = scores[source_indices]
+        tgt_scores = scores[target_indices]
+        avg_scores = (src_scores + tgt_scores) / 2
+
+        weights = np.linalg.norm(src_positions - tgt_positions, axis=1) * ((1-avg_scores)**2)
+
         edge_list_with_weights = list(zip(source_indices.tolist(), 
                                         target_indices.tolist(), 
                                         weights.tolist()))
@@ -622,18 +505,20 @@ class PSPRM:
         G = self.graph
         
         # Heuristic function
-        # edge_weights = [data['weight'] for u, v, data in G.edges(data=True)]
-        # if edge_weights:
-        #     max_weight = max(edge_weights)
-        #     min_weight = min(edge_weights)
-        #     weight_range = max_weight - min_weight if max_weight > min_weight else 1.0
-        # else:
-        #     weight_range = 1.0
+        edge_weights = [data['weight'] for u, v, data in G.edges(data=True)]
+        if edge_weights:
+            max_weight = max(edge_weights)
+            min_weight = min(edge_weights)
+            weight_range = max_weight - min_weight if max_weight > min_weight else 1.0
+        else:
+            raise KeyError("No weights in graph")
 
         max_score = max(nx.get_node_attributes(G, 'score').values())
         min_score = min(nx.get_node_attributes(G, 'score').values())
         score_range = max_score - min_score if max_score > min_score else 1.0
         
+
+
         goal_x = G.nodes[goal_id]['x']
         goal_y = G.nodes[goal_id]['y']
         goal_theta = G.nodes[goal_id]['theta']
@@ -643,17 +528,20 @@ class PSPRM:
             v_score = (G.nodes[v]['score'] - min_score) / score_range
 
             # Set motion cost to the edge weight
-            if G.has_edge(u, v):
-                # motion_cost = G[u][v]['weight'] / weight_range  
-                ux = G.nodes[u]['x']
-                uy = G.nodes[u]['y']
-                ut = G.nodes[u]['theta']
-                motion_cost = ((ux - goal_x) ** 2 + (uy - goal_y) ** 2 ) ** 0.5
-            else:
-                motion_cost = float('inf')  # No direct edge, set to infinity
+            # if G.has_edge(u, v):
+            ux = G.nodes[u]['x']
+            uy = G.nodes[u]['y']
+            ut = G.nodes[u]['theta']
+            motion_cost = ((ux - goal_x) ** 2 + (uy - goal_y) ** 2 ) ** 0.5 / weight_range
+            # else:
+            #     motion_cost = float('inf')  # No direct edge, set to infinity
 
             # Use the average of the scores instead of the minimum
-            score_term = (u_score + v_score) / 2
+            score_term = (u_score + v_score)/2 
+            # if motion_cost != float('inf'):
+            #     print(f"score term {score_term}")
+            #     print(f"motion cost {motion_cost}")
+            # print(f"Score term: {score_term:.4f}, Motion cost: {motion_cost:.4f}")
             val = -alpha * score_term + beta * motion_cost
 
             # Adjust the heuristic to prioritize high scores more strongly
@@ -745,7 +633,7 @@ class Solution:
         except KeyError as e:
             raise ValueError(f"Node {e} not found in graph")
 
-        print(f"Original path: {self.path}")
+        # print(f"Original path: {self.path}")
         simplified_path = [self.path[0]]
         last_kept_index = 0
         for i in range(2, len(self.path)):
@@ -765,7 +653,7 @@ class Solution:
         if simplified_path[-1] != self.path[-1]:
             simplified_path.append(self.path[-1])
 
-        print(f"Simplified path: {simplified_path}") 
+        # print(f"Simplified path: {simplified_path}") 
         
         # # After simplicification, attempt to skip nodes where pan is at the bounds 
         # # Note that collision checking must be performed
@@ -978,503 +866,6 @@ class Solution:
 #         trajectory = np.hstack((trajectory, pan_tilt))
 #         self.trajectory = trajectory
 #         return trajectory
-# import numpy as np
-# import matplotlib.pyplot as plt
-# from typing import List, Tuple, Optional, Union
-# from enum import Enum
-
-# class SegmentType(Enum):
-#     LEFT = 0
-#     RIGHT = 1
-#     STRAIGHT = 2
-#     NOP = 3
-
-# class ReedsSheppPath:
-    
-#     PATH_TYPES = [
-#         [SegmentType.LEFT, SegmentType.RIGHT, SegmentType.LEFT, SegmentType.NOP, SegmentType.NOP],         # 0
-#         [SegmentType.RIGHT, SegmentType.LEFT, SegmentType.RIGHT, SegmentType.NOP, SegmentType.NOP],        # 1
-#         [SegmentType.LEFT, SegmentType.RIGHT, SegmentType.LEFT, SegmentType.RIGHT, SegmentType.NOP],       # 2
-#         [SegmentType.RIGHT, SegmentType.LEFT, SegmentType.RIGHT, SegmentType.LEFT, SegmentType.NOP],       # 3
-#         [SegmentType.LEFT, SegmentType.RIGHT, SegmentType.STRAIGHT, SegmentType.LEFT, SegmentType.NOP],    # 4
-#         [SegmentType.RIGHT, SegmentType.LEFT, SegmentType.STRAIGHT, SegmentType.RIGHT, SegmentType.NOP],   # 5
-#         [SegmentType.LEFT, SegmentType.STRAIGHT, SegmentType.RIGHT, SegmentType.LEFT, SegmentType.NOP],    # 6
-#         [SegmentType.RIGHT, SegmentType.STRAIGHT, SegmentType.LEFT, SegmentType.RIGHT, SegmentType.NOP],   # 7
-#         [SegmentType.LEFT, SegmentType.RIGHT, SegmentType.STRAIGHT, SegmentType.RIGHT, SegmentType.NOP],   # 8
-#         [SegmentType.RIGHT, SegmentType.LEFT, SegmentType.STRAIGHT, SegmentType.LEFT, SegmentType.NOP],    # 9
-#         [SegmentType.RIGHT, SegmentType.STRAIGHT, SegmentType.RIGHT, SegmentType.LEFT, SegmentType.NOP],   # 10
-#         [SegmentType.LEFT, SegmentType.STRAIGHT, SegmentType.LEFT, SegmentType.RIGHT, SegmentType.NOP],    # 11
-#         [SegmentType.LEFT, SegmentType.STRAIGHT, SegmentType.RIGHT, SegmentType.NOP, SegmentType.NOP],     # 12
-#         [SegmentType.RIGHT, SegmentType.STRAIGHT, SegmentType.LEFT, SegmentType.NOP, SegmentType.NOP],     # 13
-#         [SegmentType.LEFT, SegmentType.STRAIGHT, SegmentType.LEFT, SegmentType.NOP, SegmentType.NOP],      # 14
-#         [SegmentType.RIGHT, SegmentType.STRAIGHT, SegmentType.RIGHT, SegmentType.NOP, SegmentType.NOP],    # 15
-#         [SegmentType.LEFT, SegmentType.RIGHT, SegmentType.STRAIGHT, SegmentType.LEFT, SegmentType.RIGHT],  # 16
-#         [SegmentType.RIGHT, SegmentType.LEFT, SegmentType.STRAIGHT, SegmentType.RIGHT, SegmentType.LEFT]   # 17
-#     ]
-    
-#     def __init__(self, path_type_index=-1, lengths=None, total_length=999.0):
-#         self.path_type_index = path_type_index
-#         self.lengths = lengths if lengths is not None else [0.0, 0.0, 0.0, 0.0, 0.0]
-#         self.total_length = total_length
-        
-#         if path_type_index >= 0 and lengths is not None:
-#             self.total_length = sum(abs(l) for l in lengths)
-
-# def mod2pi(x):
-#     """Normalize angle to [-pi, pi]."""
-#     return np.arctan2(np.sin(x), np.cos(x))
-
-# def polar(x, y):
-#     """Convert Cartesian to polar coordinates."""
-#     r = np.sqrt(x*x + y*y)
-#     theta = np.arctan2(y, x)
-#     return r, theta
-
-# def tau_omega(u, v, xi, eta, phi):
-#     """Helper function for Reeds-Shepp path computation."""
-#     delta = mod2pi(u - v)
-#     A = np.sin(u) - np.sin(delta)
-#     B = np.cos(u) - np.cos(delta) - 1.0
-#     t1 = np.arctan2(eta * A - xi * B, xi * A + eta * B)
-#     t2 = 2.0 * (np.cos(delta) - np.cos(v) - np.cos(u)) + 3.0
-#     tau = mod2pi(t1 + np.pi) if t2 < 0 else mod2pi(t1)
-#     omega = mod2pi(tau - u + v - phi)
-#     return tau, omega
-
-# # Path computation functions
-# def LpSpLp(x, y, phi):
-#     """Left-Straight-Left path computation."""
-#     r, t = polar(x - np.sin(phi), y - 1.0 + np.cos(phi))
-#     u = r
-#     if t >= -1e-6:
-#         v = mod2pi(phi - t)
-#         if v >= -1e-6:
-#             return True, t, u, v
-#     return False, 0, 0, 0
-
-# def LpSpRp(x, y, phi):
-#     """Left-Straight-Right path computation."""
-#     r, t1 = polar(x + np.sin(phi), y - 1.0 - np.cos(phi))
-#     u1_squared = r * r
-#     if u1_squared >= 4.0:
-#         u = np.sqrt(u1_squared - 4.0)
-#         theta = np.arctan2(2.0, u)
-#         t = mod2pi(t1 + theta)
-#         v = mod2pi(t - phi)
-#         return t >= -1e-6 and v >= -1e-6, t, u, v
-#     return False, 0, 0, 0
-
-# def LpRmL(x, y, phi):
-#     """Left-Right-Left path computation."""
-#     xi = x - np.sin(phi)
-#     eta = y - 1.0 + np.cos(phi)
-#     r, theta = polar(xi, eta)
-#     if r <= 4.0:
-#         u = -2.0 * np.arcsin(0.25 * r)
-#         t = mod2pi(theta + 0.5 * u + np.pi)
-#         v = mod2pi(phi - t + u)
-#         return t >= -1e-6 and u <= 1e-6, t, u, v
-#     return False, 0, 0, 0
-
-# def LpRupLumRm(x, y, phi):
-#     """Path computation for CCCC family."""
-#     xi = x + np.sin(phi)
-#     eta = y - 1.0 - np.cos(phi)
-#     rho = 0.25 * (2.0 + np.sqrt(xi*xi + eta*eta))
-#     if rho <= 1.0:
-#         u = np.arccos(rho)
-#         t, v = tau_omega(u, -u, xi, eta, phi)
-#         return t >= -1e-6 and v <= 1e-6, t, u, v
-#     return False, 0, 0, 0
-
-# def LpRumLumRp(x, y, phi):
-#     """Path computation for CCCC family."""
-#     xi = x + np.sin(phi)
-#     eta = y - 1.0 - np.cos(phi)
-#     rho = (20.0 - xi*xi - eta*eta) / 16.0
-#     if 0.0 <= rho <= 1.0:
-#         u = -np.arccos(rho)
-#         if u >= -np.pi/2:
-#             t, v = tau_omega(u, u, xi, eta, phi)
-#             return t >= -1e-6 and v >= -1e-6, t, u, v
-#     return False, 0, 0, 0
-
-# def LpRmSmLm(x, y, phi):
-#     """Path computation for CCSC family."""
-#     xi = x - np.sin(phi)
-#     eta = y - 1.0 + np.cos(phi)
-#     rho, theta = polar(xi, eta)
-#     if rho >= 2.0:
-#         r = np.sqrt(rho*rho - 4.0)
-#         u = 2.0 - r
-#         t = mod2pi(theta + np.arctan2(r, -2.0))
-#         v = mod2pi(phi - np.pi/2 - t)
-#         return t >= -1e-6 and u <= 1e-6 and v <= 1e-6, t, u, v
-#     return False, 0, 0, 0
-
-# def LpRmSmRm(x, y, phi):
-#     """Path computation for CCSC family."""
-#     xi = x + np.sin(phi)
-#     eta = y - 1.0 - np.cos(phi)
-#     rho, theta = polar(-eta, xi)
-#     if rho >= 2.0:
-#         t = theta
-#         u = 2.0 - rho
-#         v = mod2pi(t + np.pi/2 - phi)
-#         return t >= -1e-6 and u <= 1e-6 and v <= 1e-6, t, u, v
-#     return False, 0, 0, 0
-
-# def LpRmSLmRp(x, y, phi):
-#     """Path computation for CCSCC family."""
-#     xi = x + np.sin(phi)
-#     eta = y - 1.0 - np.cos(phi)
-#     rho, theta = polar(xi, eta)
-#     if rho >= 2.0:
-#         u = 4.0 - np.sqrt(rho*rho - 4.0)
-#         if u <= 1e-6:
-#             t = mod2pi(np.arctan2((4.0 - u)*xi - 2.0*eta, -2.0*xi + (u - 4.0)*eta))
-#             v = mod2pi(t - phi)
-#             return t >= -1e-6 and v >= -1e-6, t, u, v
-#     return False, 0, 0, 0
-
-# def CSC(x, y, phi, best_path):
-#     """Curve-Straight-Curve path family."""
-#     paths_to_try = [
-#         (lambda: LpSpLp(x, y, phi), 14, 1, 1, 1),
-#         (lambda: LpSpLp(-x, y, -phi), 14, -1, -1, -1),
-#         (lambda: LpSpLp(x, -y, -phi), 15, 1, 1, 1),
-#         (lambda: LpSpLp(-x, -y, phi), 15, -1, -1, -1),
-#         (lambda: LpSpRp(x, y, phi), 12, 1, 1, 1),
-#         (lambda: LpSpRp(-x, y, -phi), 12, -1, -1, -1),
-#         (lambda: LpSpRp(x, -y, -phi), 13, 1, 1, 1),
-#         (lambda: LpSpRp(-x, -y, phi), 13, -1, -1, -1),
-#     ]
-    
-#     for path_func, path_type, sign_t, sign_u, sign_v in paths_to_try:
-#         valid, t, u, v = path_func()
-#         if valid:
-#             length = abs(t) + abs(u) + abs(v)
-#             if length < best_path.total_length:
-#                 best_path.path_type_index = path_type
-#                 best_path.lengths = [sign_t*t, sign_u*u, sign_v*v, 0, 0]
-#                 best_path.total_length = length
-
-# def CCC(x, y, phi, best_path):
-#     """Curve-Curve-Curve path family."""
-#     # Forward paths
-#     paths_to_try = [
-#         (lambda: LpRmL(x, y, phi), 0, 1, 1, 1),
-#         (lambda: LpRmL(-x, y, -phi), 0, -1, -1, -1),
-#         (lambda: LpRmL(x, -y, -phi), 1, 1, 1, 1),
-#         (lambda: LpRmL(-x, -y, phi), 1, -1, -1, -1),
-#     ]
-    
-#     for path_func, path_type, sign_t, sign_u, sign_v in paths_to_try:
-#         valid, t, u, v = path_func()
-#         if valid:
-#             length = abs(t) + abs(u) + abs(v)
-#             if length < best_path.total_length:
-#                 best_path.path_type_index = path_type
-#                 best_path.lengths = [sign_t*t, sign_u*u, sign_v*v, 0, 0]
-#                 best_path.total_length = length
-    
-#     # Backward paths
-#     xb = x * np.cos(phi) + y * np.sin(phi)
-#     yb = x * np.sin(phi) - y * np.cos(phi)
-    
-#     backward_paths = [
-#         (lambda: LpRmL(xb, yb, phi), 0, 1, 1, 1),
-#         (lambda: LpRmL(-xb, yb, -phi), 0, -1, -1, -1),
-#         (lambda: LpRmL(xb, -yb, -phi), 1, 1, 1, 1),
-#         (lambda: LpRmL(-xb, -yb, phi), 1, -1, -1, -1),
-#     ]
-    
-#     for path_func, path_type, sign_t, sign_u, sign_v in backward_paths:
-#         valid, t, u, v = path_func()
-#         if valid:
-#             length = abs(t) + abs(u) + abs(v)
-#             if length < best_path.total_length:
-#                 best_path.path_type_index = path_type
-#                 best_path.lengths = [sign_v*v, sign_u*u, sign_t*t, 0, 0]  # Reversed order
-#                 best_path.total_length = length
-
-# def CCCC(x, y, phi, best_path):
-#     """Curve-Curve-Curve-Curve path family."""
-#     paths_to_try = [
-#         (lambda: LpRupLumRm(x, y, phi), 2, 1, 1, 1, 1),
-#         (lambda: LpRupLumRm(-x, y, -phi), 2, -1, -1, -1, -1),
-#         (lambda: LpRupLumRm(x, -y, -phi), 3, 1, 1, 1, 1),
-#         (lambda: LpRupLumRm(-x, -y, phi), 3, -1, -1, -1, -1),
-#         (lambda: LpRumLumRp(x, y, phi), 2, 1, 1, 1, 1),
-#         (lambda: LpRumLumRp(-x, y, -phi), 2, -1, -1, -1, -1),
-#         (lambda: LpRumLumRp(x, -y, -phi), 3, 1, 1, 1, 1),
-#         (lambda: LpRumLumRp(-x, -y, phi), 3, -1, -1, -1, -1),
-#     ]
-    
-#     for path_func, path_type, sign_t, sign_u, sign_v, sign_w in paths_to_try:
-#         valid, t, u, v = path_func()
-#         if valid:
-#             length = abs(t) + 2 * abs(u) + abs(v)
-#             if length < best_path.total_length:
-#                 best_path.path_type_index = path_type
-#                 best_path.lengths = [sign_t*t, sign_u*u, -sign_u*u, sign_v*v, 0]
-#                 best_path.total_length = length
-
-# def CCSC(x, y, phi, best_path):
-#     """Curve-Curve-Straight-Curve path family."""
-#     paths_to_try = [
-#         (lambda: LpRmSmLm(x, y, phi), 4, 1, 1, 1, 1),
-#         (lambda: LpRmSmLm(-x, y, -phi), 4, -1, -1, -1, -1),
-#         (lambda: LpRmSmLm(x, -y, -phi), 5, 1, 1, 1, 1),
-#         (lambda: LpRmSmLm(-x, -y, phi), 5, -1, -1, -1, -1),
-#         (lambda: LpRmSmRm(x, y, phi), 8, 1, 1, 1, 1),
-#         (lambda: LpRmSmRm(-x, y, -phi), 8, -1, -1, -1, -1),
-#         (lambda: LpRmSmRm(x, -y, -phi), 9, 1, 1, 1, 1),
-#         (lambda: LpRmSmRm(-x, -y, phi), 9, -1, -1, -1, -1),
-#     ]
-    
-#     for path_func, path_type, sign_t, sign_u, sign_v, sign_w in paths_to_try:
-#         valid, t, u, v = path_func()
-#         if valid:
-#             length = abs(t) + abs(u) + abs(v) + np.pi/2
-#             if length < best_path.total_length:
-#                 best_path.path_type_index = path_type
-#                 best_path.lengths = [sign_t*t, sign_u*np.pi/2, sign_v*u, sign_w*v, 0]
-#                 best_path.total_length = length
-    
-#     # Try reverse path types (SCCC)
-#     reverse_paths = [
-#         (lambda: LpRmSmLm(x, y, phi), 6, 1, 1, 1, 1),
-#         (lambda: LpRmSmLm(-x, y, -phi), 6, -1, -1, -1, -1),
-#         (lambda: LpRmSmLm(x, -y, -phi), 7, 1, 1, 1, 1),
-#         (lambda: LpRmSmLm(-x, -y, phi), 7, -1, -1, -1, -1),
-#         (lambda: LpRmSmRm(x, y, phi), 10, 1, 1, 1, 1),
-#         (lambda: LpRmSmRm(-x, y, -phi), 10, -1, -1, -1, -1),
-#         (lambda: LpRmSmRm(x, -y, -phi), 11, 1, 1, 1, 1),
-#         (lambda: LpRmSmRm(-x, -y, phi), 11, -1, -1, -1, -1),
-#     ]
-    
-#     for path_func, path_type, sign_t, sign_u, sign_v, sign_w in reverse_paths:
-#         valid, t, u, v = path_func()
-#         if valid:
-#             length = abs(t) + abs(u) + abs(v) + np.pi/2
-#             if length < best_path.total_length:
-#                 best_path.path_type_index = path_type
-#                 best_path.lengths = [sign_t*v, sign_u*u, sign_v*np.pi/2, sign_w*t, 0]
-#                 best_path.total_length = length
-
-# def CCSCC(x, y, phi, best_path):
-#     """Curve-Curve-Straight-Curve-Curve path family."""
-#     paths_to_try = [
-#         (lambda: LpRmSLmRp(x, y, phi), 16, 1, 1, 1, 1, 1),
-#         (lambda: LpRmSLmRp(-x, y, -phi), 16, -1, -1, -1, -1, -1),
-#         (lambda: LpRmSLmRp(x, -y, -phi), 17, 1, 1, 1, 1, 1),
-#         (lambda: LpRmSLmRp(-x, -y, phi), 17, -1, -1, -1, -1, -1),
-#     ]
-    
-#     for path_func, path_type, sign_t, sign_u, sign_v, sign_w, sign_x in paths_to_try:
-#         valid, t, u, v = path_func()
-#         if valid:
-#             length = abs(t) + abs(u) + abs(v) + abs(u) + abs(t)  # |seg1| = |seg5|, |seg2| = |seg4|
-#             if length < best_path.total_length:
-#                 best_path.path_type_index = path_type
-#                 best_path.lengths = [sign_t*t, sign_u*u, sign_v*v, sign_w*u, sign_x*t]
-#                 best_path.total_length = length
-
-# def compute_reeds_shepp_path(start, end, turning_radius):
-#     """
-#     Compute optimal Reeds-Shepp path between two poses.
-    
-#     Args:
-#         start: (x, y, theta) starting pose or numpy array
-#         end: (x, y, theta) ending pose or numpy array
-#         turning_radius: minimum turning radius
-        
-#     Returns:
-#         ReedsSheppPath object
-#     """
-#     # Convert to numpy arrays if needed
-#     start = np.array(start) if not isinstance(start, np.ndarray) else start
-#     end = np.array(end) if not isinstance(end, np.ndarray) else end
-    
-#     # Transform to local coordinates
-#     dx = end[0] - start[0]
-#     dy = end[1] - start[1]
-#     c = np.cos(start[2])
-#     s = np.sin(start[2])
-#     x = (c * dx + s * dy) / turning_radius
-#     y = (-s * dx + c * dy) / turning_radius
-#     phi = end[2] - start[2]
-    
-#     # Find best path
-#     best_path = ReedsSheppPath()  # Invalid path initially
-    
-#     CSC(x, y, phi, best_path)
-#     CCC(x, y, phi, best_path)
-#     CCCC(x, y, phi, best_path)
-#     CCSC(x, y, phi, best_path)
-#     CCSCC(x, y, phi, best_path)
-    
-#     return best_path
-
-
-# def interpolate_path(start, path, t, turning_radius):
-#     """
-#     Interpolate along a Reeds-Shepp path.
-    
-#     Args:
-#         start: starting pose (x, y, theta) or numpy array
-#         path: ReedsSheppPath object
-#         t: interpolation parameter [0, 1]
-#         turning_radius: turning radius
-        
-#     Returns:
-#         numpy array [x, y, theta] pose at parameter t
-#     """
-#     # Convert to numpy array if needed
-#     start = np.array(start) if not isinstance(start, np.ndarray) else start
-    
-#     if path.path_type_index == -1:
-#         return np.array([999.0, 999.0, 999.0])  # Invalid path
-    
-#     seg = t * path.total_length
-#     phi = start[2]
-#     x, y = 0.0, 0.0
-    
-#     path_type = ReedsSheppPath.PATH_TYPES[path.path_type_index]
-    
-#     for i in range(5):
-#         if seg <= 0:
-#             break
-            
-#         length = path.lengths[i]
-#         if length == 0:
-#             continue
-            
-#         if length < 0:
-#             v = max(-seg, length)
-#             seg += v
-#         else:
-#             v = min(seg, length)
-#             seg -= v
-        
-#         current_phi = phi
-#         segment_type = path_type[i]
-        
-#         if segment_type == SegmentType.LEFT:
-#             x += np.sin(current_phi + v) - np.sin(current_phi)
-#             y += -np.cos(current_phi + v) + np.cos(current_phi)
-#             phi = current_phi + v
-#         elif segment_type == SegmentType.RIGHT:
-#             x += -np.sin(current_phi - v) + np.sin(current_phi)
-#             y += np.cos(current_phi - v) - np.cos(current_phi)
-#             phi = current_phi - v
-#         elif segment_type == SegmentType.STRAIGHT:
-#             x += v * np.cos(current_phi)
-#             y += v * np.sin(current_phi)
-    
-#     # Transform back to world coordinates
-#     final_x = x * turning_radius + start[0]
-#     final_y = y * turning_radius + start[1]
-#     final_theta = phi
-
-    
-#     return np.array([final_x, final_y, final_theta])
-
-# class ReedsSheppTrajectory:
-#     """Generate smooth Reeds-Shepp trajectories connecting A* waypoints."""
-    
-#     def __init__(self, turning_radius):
-#         self.turning_radius = turning_radius
-    
-#     def connect_waypoints(self, waypoints, num_samples=50):
-#         """
-#         Connect waypoints with Reeds-Shepp curves.
-        
-#         Args:
-#             waypoints: List of (x, y, theta) tuples or numpy array of shape (n, 3)
-#             num_samples: Number of samples per segment
-            
-#         Returns:
-#             tuple: (trajectory_points as numpy array, segment_lengths as list)
-#         """
-#         # Convert to numpy array if needed
-#         if not isinstance(waypoints, np.ndarray):
-#             waypoints = np.array(waypoints)
-        
-#         if waypoints.shape[0] < 2:
-#             raise ValueError("Need at least 2 waypoints")
-        
-#         if waypoints.shape[1] != 3:
-#             raise ValueError("Waypoints must have shape (n, 3) for (x, y, theta)")
-        
-#         trajectory_points = []
-#         segment_lengths = []
-#         for i in range(len(waypoints) - 1):
-#             start = waypoints[i]
-#             end = waypoints[i + 1]
-#             # Compute Reeds-Shepp path
-#             path = compute_reeds_shepp_path(start, end, self.turning_radius)
-            
-#             # Generate trajectory segment
-#             segment = []
-#             for j in range(num_samples):
-#                 t = j / (num_samples - 1) if num_samples > 1 else 0.0
-#                 pose = interpolate_path(start, path, t, self.turning_radius)
-#                 segment.append(pose)
-            
-#             # Add to trajectory (avoid duplicating waypoints)
-#             if i == 0:
-#                 trajectory_points.extend(segment)
-#             else:
-#                 trajectory_points.extend(segment[1:])
-            
-#             segment_lengths.append(path.total_length * self.turning_radius)
-#         print(trajectory_points[-1])
-#         return np.array(trajectory_points), segment_lengths
-    
-#     def plot_trajectory(self, waypoints, trajectory, title="Reeds-Shepp Trajectory"):
-#         """
-#         Plot trajectory with waypoints and orientation arrows.
-        
-#         Args:
-#             waypoints: List of waypoints or numpy array
-#             trajectory: numpy array of trajectory points
-#             title: Plot title
-#         """
-#         plt.figure(figsize=(10, 8))
-        
-#         # Convert waypoints to numpy array if needed
-#         if not isinstance(waypoints, np.ndarray):
-#             waypoints = np.array(waypoints)
-        
-#         # Plot trajectory
-#         plt.plot(trajectory[:, 0], trajectory[:, 1], 'b-', linewidth=2, label='Reeds-Shepp Trajectory')
-        
-#         # Plot waypoints
-#         plt.plot(waypoints[:, 0], waypoints[:, 1], 'ro-', markersize=8, linewidth=1, label='A* Waypoints')
-        
-#         # Plot orientation arrows
-#         arrow_step = max(1, len(trajectory) // 20)
-#         for i in range(0, len(trajectory), arrow_step):
-#             x, y, theta = trajectory[i]
-#             if abs(x) < 900:  # Skip invalid points
-#                 dx = 0.1 * np.cos(theta)
-#                 dy = 0.1 * np.sin(theta)
-#                 plt.arrow(x, y, dx, dy, head_width=0.05, head_length=0.03, fc='green', ec='green', alpha=0.7)
-        
-#         plt.grid(True, alpha=0.3)
-#         plt.axis('equal')
-#         plt.xlabel('X Position')
-#         plt.ylabel('Y Position')
-#         plt.title(title)
-#         plt.legend()
-#         plt.tight_layout()
-#         plt.show()
-
-
-
-
 
 
 
@@ -1632,3 +1023,54 @@ class Solution:
 
     #     return {'start': [start_state, start_neighbors, start_edges, start_valid_edges],
     #             'goal': [goal_state, goal_neighbors, goal_edges, goal_valid_edges]}
+# import torch
+
+# import math
+
+# import kornia.geometry.conversions as kornia_conv
+
+# import pytorch_kinematics as pk
+
+# import matplotlib.pyplot as plt
+
+# from mpl_toolkits.mplot3d import Axes3D
+
+
+
+
+
+# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+# dtype = torch.float64
+
+
+# urdf = "/home/lb73/cudaPRM/planning/resources/robots/stretch/stretch.urdf"
+
+
+
+# # Load robot kinematics chain
+
+# chain = pk.build_serial_chain_from_urdf(open(urdf, mode='rb').read(), "link_head", "base_link")
+# chain = chain.to(device=device, dtype=dtype)
+
+
+
+# # Get camera mount transform in robot frame
+
+# th = [0.0, 0.0]  # pan, tilt at 0 for base pose
+
+# ret = chain.forward_kinematics(th, end_only=False)
+
+# tg = ret['link_head_nav_cam']
+
+# m = tg.get_matrix()
+
+# pos = m[:, :3, 3]
+
+# rot = pk.matrix_to_quaternion(m[:, :3, :3])
+
+# cam_base_rot = kornia_conv.quaternion_to_rotation_matrix(rot)
+
+# print(rot)
+# print(pos)
+# print(cam_base_rot)

@@ -23,8 +23,8 @@ MODEL_PATH = "resources/models/percscore-nov12-50k.pt"
 MODEL_LOADER = ModelLoader(label_size=3, max_batch_size=10000, use_trt=False)
 MODEL = MODEL_LOADER.load_model(MODEL_PATH)
 SEED = 2387
-MAX_SKIP_DIST = 1.4
-REPLANNING_THRESHOLD = 0.8
+MAX_SKIP_DIST = 1.2
+REPLANNING_THRESHOLD = 1
 
 START = np.array([0.0, 2.0, 0.0, 0.0, 0.0])
 GOAL = np.array([0.1, -1.8, -1.57, 0.0, 0.0])
@@ -63,6 +63,14 @@ def print_env_and_trajectory(env, trajectory):
     if env['object_pose'] is not None and env['object_pose'].numel() > 0:
         obj = env['object_pose'].cpu().numpy()
         ax.plot(obj[0], obj[1], 'go', markersize=10)  # Object position
+
+    # Print object orientation as a line
+        if env['object_pose'].numel() == 7:
+            import scipy.spatial.transform
+            quat = obj[3:7]
+            rot = scipy.spatial.transform.Rotation.from_quat(quat)
+            dir_vec = rot.apply(np.array([1, 0, 0]))
+            ax.plot([obj[0], obj[0] + dir_vec[0]], [obj[1], obj[1] + dir_vec[1]], 'g-')
 
     plt.gca().set_aspect('equal', adjustable='box')
 
@@ -122,7 +130,7 @@ def update_env_from_stream(env, poses, names):
                 [
                     pose['position']['x'], 
                     pose['position']['y'], 
-                    pose['position']['z'], 
+                    1.5, 
                     pose['orientation']['x'], 
                     pose['orientation']['y'], 
                     pose['orientation']['z'], 
@@ -136,7 +144,7 @@ def generate_trajectory(env, start, goal):
     prm = PSPRM(MODEL, env)
     prm.build_prm(SEED)
     s_id, g_id = prm.addStartAndGoal(start, goal)
-    path = prm.a_star_search(start_id=s_id, goal_id=g_id, alpha=1, beta=1)
+    path = prm.a_star_search(start_id=s_id, goal_id=g_id, alpha=.3, beta=.25)
     sol = Solution(path)
     sol.simplify(prm, env, max_skip_dist=MAX_SKIP_DIST)
     trajectory = sol.generate_trajectory_rsplan(prm, turning_radius=1)      
@@ -160,6 +168,8 @@ def need_to_replan(initial_env, current_env):
     elif initial_env['rectangles'] is None or initial_env['rectangles'].numel() == 0:
         for ci, cc in zip(initial_env['circles'].cpu(), current_env['circles'].cpu()):
             # print(np.linalg.norm(cc - ci))
+            # Implement the norm from scratch
+            # norm = (cc[0] - ci[0])
             if (np.linalg.norm(cc - ci) > REPLANNING_THRESHOLD):
                 # print("REPLANNING")
                 return True
@@ -168,6 +178,12 @@ def need_to_replan(initial_env, current_env):
             if (np.linalg.norm(rc - ri) > REPLANNING_THRESHOLD):
                 # print("REPLANNING")
                 return True
+            
+    if initial_env['object_pose'].numel() > 0 and current_env['object_pose'].numel() > 0:
+        print(np.linalg.norm(current_env['object_pose'][3:].cpu() - initial_env['object_pose'][3:].cpu()))
+        if (np.linalg.norm(current_env['object_pose'][3:].cpu() - initial_env['object_pose'][3:].cpu()) > REPLANNING_THRESHOLD*2):
+            # print("REPLANNING")
+            return True
     return False
 
 def main():
@@ -191,7 +207,7 @@ def main():
         update_env_from_stream(base_env, poses, names)
 
     env = {k: v.clone() if isinstance(v, torch.Tensor) else v for k, v in base_env.items()}
-    print(env)
+    # print(env)
 
     start = get_robot_state(poses, names)
     goal = GOAL
@@ -205,7 +221,8 @@ def main():
     tp.publish_trajectory(ws, traj)
     
     replan = False
-
+    # Set t_restart to yesterday so that it replans immediately
+    t_restart = time.time() - 24 * 60 * 60
 
     while True:
         poses, names = pr.get_latest_poses_and_names()
@@ -215,16 +232,25 @@ def main():
         replan = need_to_replan(initial_env=base_env, current_env=env)
         # print(f"Current object pose: {env['object_pose']}")
         if replan:
+            # if time.time() - t_restart < 2:
+            #     replan = False
+            #     continue
             print("Replanning...")
             poses, names = pr.get_latest_poses_and_names()
             
             start = get_robot_state(poses, names)
+            if start is None:
+                print("Robot not found, skipping replanning.")
+                continue
             update_env_from_stream(env, poses, names)
             
             traj = generate_trajectory(env, start, goal)
-            tp.publish_trajectory(ws, traj)
+            # print_env_and_trajectory(env, traj)
 
-            base_env = {k: v.clone() if isinstance(v, torch.Tensor) else v for k, v in env.items()}
+            tp.publish_trajectory(ws, traj)
+            t_restart = time.time()
+            for k, v in env.items():
+                base_env[k] = v.clone() if isinstance(v, torch.Tensor) else v
             replan = False
 
 if __name__ == "__main__":

@@ -237,7 +237,7 @@ def main():
         [1.2, 0.0, 1.65,   0, 0, 0.707107, 0.707107],  # start
     )
     human_goal = np.array(
-         [1, 1.50, 1.65,   0.707107, 0, 0, 0.707107]
+         [1.2, 0.0, 1.65,    0, 0, -.707107, .707107]
     )
 
     chair_goal = np.array(
@@ -277,7 +277,7 @@ def main():
         prm = PSPRM(model, env)
         prm.build_prm(seed)
         s_id, g_id = prm.addStartAndGoal(start, goal)
-        path = prm.a_star_search(start_id=s_id, goal_id=g_id, alpha=1, beta=1)
+        path = prm.a_star_search(start_id=s_id, goal_id=g_id, alpha=1, beta=0.1)
         sol = Solution(path)
         sol.simplify(prm, env, max_skip_dist=MAX_SKIP_DIST)
         trajectory = sol.generate_trajectory_rsplan(prm, turning_radius=1)      
@@ -285,7 +285,7 @@ def main():
         return trajectory
 
 
-    def need_to_replan(initial_env, current_env, threshold=0.5):
+    def need_to_replan(initial_env, current_env, threshold=0.1):
         for ri, rc in zip(initial_env['rectangles'].cpu(), current_env['rectangles'].cpu()):
             print(np.linalg.norm(rc - ri) > 0)
             if np.linalg.norm(rc - ri) > threshold:
@@ -405,8 +405,8 @@ def main():
                 
                 set_robot_state(robot, robot_state)
                 
-                if time.time() - t1 > 2 and need_to_move:
-                    move_obj(chair_goal, env, monitoring_obj='human', obj="chair")
+                if time.time() - t1 > 5 and need_to_move:
+                    # move_obj(chair_goal, env, monitoring_obj='human', obj="chair")
                     move_obj(human_goal, env, monitoring_obj='human', obj="human")
                     need_to_move = False
                    
