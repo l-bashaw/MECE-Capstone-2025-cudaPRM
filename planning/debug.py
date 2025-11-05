@@ -296,7 +296,7 @@ def plot_environment_with_heatmap(graph, bounds, resolution=100):
 def main():
     device = 'cuda'
     dtype = torch.float32
-    env_config_file = "/home/lb73/cudaPRM/planning/resources/scenes/environment/replanning_test_env.yaml"  
+    env_config_file = "/home/lb73/cudaPRM/planning/resources/scenes/environment/multigoal_demo.yaml"  
     model_path = "/home/lb73/cudaPRM/planning/resources/models/percscore-nov12-50k.pt"
     seed = 2387
     
@@ -318,7 +318,7 @@ def main():
     #   "cup": [0, 0, 1]
     # }
 
-    env['object_pose'] = torch.tensor([1.2, 0.0, 1.65, 0, 0, .707, -.707], dtype=dtype, device=device)
+    env['object_pose'] = torch.tensor([0.2, -0.2, 1.65, 0, 0, 0, 1], dtype=dtype, device=device)
     env['object_label'] = torch.tensor([1.0, 0.0, 0.0], dtype=dtype, device=device)
     env['bounds'][0, 0] = -1.5
     env['bounds'][1, 0] = 4
@@ -341,23 +341,23 @@ def main():
         # print(sg_params['start'][0])
         # print(sg_params['goal'][0])
 
-        path = prm.a_star_search(start_id=st, goal_id=go, alpha=0.4, beta=.2)
+        path = prm.a_star_search(start_id=st, goal_id=go, alpha=0.5, beta=.2)
         sol = Solution(path)
-        sol.simplify(prm, env, max_skip_dist=2)
+        sol.simplify(prm, env, max_skip_dist=1.5)
 
         trajectory = sol.generate_trajectory_rsplan(prm, turning_radius=1)
         trajectory = sol.project_trajectory(env['object_pose'])
         print("Generated trajectory with %d points" % trajectory.shape[0])
-        print(type(trajectory))  # np.ndarray
+        # print(type(trajectory))  # np.ndarray
         t2 = time.time()
         print(f"Time: {t2 - t1:.4f} seconds")
 
     sol.print_path(prm.graph)
-    np.savetxt("./test_trajectory.csv", trajectory, delimiter=",")
+    # np.savetxt("./test_trajectory.csv", trajectory, delimiter=",")
     fig = visualize_environment_and_path(env, prm, path, trajectory, st, go, animation_speed=100)
-    plt.show()
+    # plt.show()
 
-    plot_environment_with_heatmap(prm.graph, env['bounds'].cpu().numpy(), resolution=200)
+    # plot_environment_with_heatmap(prm.graph, env['bounds'].cpu().numpy(), resolution=200)
     
     
     # # Save animation as video if present

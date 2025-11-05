@@ -27,7 +27,7 @@ class PSPRM:
         self.urdf_path = "resources/robots/stretch/stretch.urdf"
         self.ee_link_name = 'camera_color_optical_frame_rotated'
         self.device = 'cuda'
-        self.bfk = BatchFk(self.urdf_path, self.ee_link_name, device=self.device, batch_size = 1500)
+        self.bfk = BatchFk(self.urdf_path, self.ee_link_name, device=self.device, batch_size = 1560)
 
     def build_prm(self, seed):
         
@@ -52,8 +52,9 @@ class PSPRM:
 
         # cam_mat = self.project_nodesFIX3(nodes, object_pose_world)
         
-
-
+        if (self.bfk.batch_size != nodes.shape[0]):
+            raise ValueError(f"Batch size {self.bfk.batch_size} does not match number of nodes {nodes.shape[0]}")
+        
         model_input = self.create_model_input(nodes, object_pose_world, obj_label)
         p_scores = self.model(model_input)
         # print(f"Max score: {p_scores.max().item():.4f}, Min score: {p_scores.min().item():.4f}, Mean score: {p_scores.mean().item():.4f}")
@@ -157,36 +158,22 @@ class PSPRM:
 
     def create_model_input(self, nodes, object_pose, label):
        
-       
         camera_positions, camera_quaternions, camera_matrices = self.bfk.batch_fk(nodes)
-        model_input_tensor = torch.empty((self.bfk.batch_size, 10), dtype=torch.float32).to(torch.device("cuda"))
+        model_input_tensor = torch.zeros((self.bfk.batch_size, 10), dtype=torch.float32).to(torch.device("cuda"))
         object_matrix = self.bfk.pose_to_transformation_matrix(object_pose)
         pose_list_tensor = self.bfk.transform_poses_batch(camera_matrices, object_matrix)
+        # print any NaN values in pose_list_tensor
+        if torch.any(torch.isnan(pose_list_tensor)):
+            print("BANG: NaN values in pose_list_tensor")
+            print("NaN values:", pose_list_tensor[torch.isnan(pose_list_tensor)])
         # insert the label
         num_poses = pose_list_tensor.shape[0]
         model_input_tensor[:num_poses, :7] = pose_list_tensor[:num_poses]
         model_input_tensor[:, 7:] = label
-        return model_input_tensor
-        
-        
-        
-        
-        
-        
-        
-        object_matrix = self.pose_to_transformation_matrix(object_pose)
-        pose_list_tensor = self.transform_poses_batch(camera_matrices, object_matrix)
-        # camera_positions_cpu = camera_positions.cpu().numpy()
-        model_input_tensor = torch.empty((nodes.shape[0], 10), dtype=torch.float32).to(torch.device("cuda"))
-     
-        object_matrix = self.pose_to_transformation_matrix(object_pose)
-        pose_list_tensor = self.transform_poses_batch(camera_matrices, object_matrix)
-
-        # insert the label
-        num_poses = min(pose_list_tensor.shape[0], model_input_tensor.shape[0])
-        model_input_tensor[:num_poses, :7] = pose_list_tensor[:num_poses]
-        model_input_tensor[:, 7:] = label
-
+        # print any NaN values in model_input_tensor
+        if torch.any(torch.isnan(model_input_tensor)):
+            print("CLANG: NaN values in model_input_tensor")
+            print("NaN values:", model_input_tensor[torch.isnan(model_input_tensor)])
         return model_input_tensor
     
 
@@ -259,197 +246,143 @@ class PSPRM:
         # print(tilt[:5])
         return T_cam_base_world
         
-        # # --- Apply pan/tilt to camera transform ---
-        # def make_pan_tilt_transform(pan, tilt, dtype, device):
-        #     B = pan.shape[0]
-        #     T = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
+      
 
-        #     # Pan: rotation around Y
-        #     cos_p, sin_p = torch.cos(pan), torch.sin(pan)
-        #     R_pan = torch.stack([
-        #         torch.stack([ cos_p, torch.zeros_like(pan), sin_p], dim=1),
-        #         torch.stack([ torch.zeros_like(pan), torch.ones_like(pan), torch.zeros_like(pan)], dim=1),
-        #         torch.stack([-sin_p, torch.zeros_like(pan), cos_p], dim=1)
-        #     ], dim=1)
+    # def project_nodesFIX2(self, nodes, object_pose_world):
+    #     """
+    #     Calculate pan and tilt angles for robot states to look at target object,
+    #     update camera transforms with pan/tilt, and compute relative pose between camera and object.
 
-        #     # Tilt: rotation around X
-        #     cos_t, sin_t = torch.cos(tilt), torch.sin(tilt)
-        #     R_tilt = torch.stack([
-        #         torch.stack([ torch.ones_like(tilt), torch.zeros_like(tilt), torch.zeros_like(tilt)], dim=1),
-        #         torch.stack([ torch.zeros_like(tilt), cos_t, -sin_t], dim=1),
-        #         torch.stack([ torch.zeros_like(tilt), sin_t,  cos_t], dim=1)
-        #     ], dim=1)
+    #     Args:
+    #         nodes: Tensor [B, 5] = (x, y, theta, pan, tilt)
+    #         object_pose_world: Tensor [3] = object xyz in world
 
-        #     R = torch.bmm(R_tilt, R_pan)  # tilt ∘ pan
-        #     T[:, :3, :3] = R
-        #     return T
+    #     Returns:
+    #         diffs: [B, 7] = (object xyz in cam frame, relative orientation quaternion)
+    #     """
+    #     # ...existing code...
+    #     device = nodes.device
+    #     dtype = nodes.dtype
+    #     B = nodes.shape[0]
 
-        # T_cam_base_cam = make_pan_tilt_transform(pan, tilt, dtype, device)
-        # T_world_cam = torch.bmm(T_world_cam_base, T_cam_base_cam)
-        # T_cam_world = torch.inverse(T_world_cam)
+    #     # Camera mount config (robot -> camera base)
+    #     cam_pos_robot = torch.tensor([0.0450, 0.0523, 1.2607], dtype=dtype, device=device)
+    #     cam_rot_robot = torch.tensor(
+    #         [[0.0, 0.0, 1.0],
+    #         [1.0, 0.0, 0.0],
+    #         [0.0, 1.0, 0.0]], dtype=dtype, device=device
+    #     )
 
-        # # --- Now compute full relative pose including object orientation ---
+    #     # Extract robot states
+    #     robot_states = nodes[:, :3]  # [x, y, theta]
+
+    #     # Object position homogeneous
+    #     object_pos_world_h = torch.cat([object_pose_world[:3], torch.ones(1, dtype=dtype, device=device)])
+    #     object_pos_world_h = object_pos_world_h.unsqueeze(0).expand(B, -1)
+
+    #     # Camera base in robot frame
+    #     T_robot_camera_base = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
+    #     T_robot_camera_base[:, :3, :3] = cam_rot_robot.unsqueeze(0).repeat(B, 1, 1)
+    #     T_robot_camera_base[:, :3, 3] = cam_pos_robot.unsqueeze(0).repeat(B, 1)
+
+    #     # Robot -> world
+    #     cos_theta = torch.cos(robot_states[:, 2])
+    #     sin_theta = torch.sin(robot_states[:, 2])
+    #     T_world_robot = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
+    #     T_world_robot[:, 0, 0] = cos_theta
+    #     T_world_robot[:, 0, 1] = -sin_theta
+    #     T_world_robot[:, 1, 0] = sin_theta
+    #     T_world_robot[:, 1, 1] = cos_theta
+    #     T_world_robot[:, 0, 3] = robot_states[:, 0]
+    #     T_world_robot[:, 1, 3] = robot_states[:, 1]
+
+    #     # Camera base in world
+    #     T_world_cam_base = torch.bmm(T_world_robot, T_robot_camera_base)
+
+    #     # Object in camera base frame (before pan/tilt)
+    #     T_cam_base_world = torch.inverse(T_world_cam_base)
+    #     obj_in_cam_base = torch.bmm(T_cam_base_world, object_pos_world_h.unsqueeze(-1)).squeeze(-1)[:, :3]
+    #     dx, dy, dz = obj_in_cam_base[:, 0], obj_in_cam_base[:, 1], obj_in_cam_base[:, 2]
+
+    #     # Pan/tilt calculation
+    #     pan = torch.atan2(dx, dz)
+    #     tilt = torch.atan2(dy, torch.sqrt(dx**2 + dz**2))
+    #     pan = torch.clamp(pan, -3.9, 1.5)
+    #     tilt = torch.clamp(tilt, -1.53, 0.79)
+
+    #     # Save into nodes
+    #     nodes[:, 3] = pan
+    #     nodes[:, 4] = tilt
+
+    #     # --- Apply pan/tilt to camera transform ---
+    #     def make_pan_tilt_transform(pan, tilt, dtype, device):
+    #         B = pan.shape[0]
+    #         T = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
+
+    #         # Pan: rotation around Y
+    #         cos_p, sin_p = torch.cos(pan), torch.sin(pan)
+    #         R_pan = torch.stack([
+    #             torch.stack([ cos_p, torch.zeros_like(pan), sin_p], dim=1),
+    #             torch.stack([ torch.zeros_like(pan), torch.ones_like(pan), torch.zeros_like(pan)], dim=1),
+    #             torch.stack([-sin_p, torch.zeros_like(pan), cos_p], dim=1)
+    #         ], dim=1)
+
+    #         # Tilt: rotation around X
+    #         cos_t, sin_t = torch.cos(tilt), torch.sin(tilt)
+    #         R_tilt = torch.stack([
+    #             torch.stack([ torch.ones_like(tilt), torch.zeros_like(tilt), torch.zeros_like(tilt)], dim=1),
+    #             torch.stack([ torch.zeros_like(tilt), cos_t, -sin_t], dim=1),
+    #             torch.stack([ torch.zeros_like(tilt), sin_t,  cos_t], dim=1)
+    #         ], dim=1)
+
+    #         R = torch.bmm(R_tilt, R_pan)  # tilt ∘ pan
+    #         T[:, :3, :3] = R
+    #         return T
+
+    #     T_cam_base_cam = make_pan_tilt_transform(pan, tilt, dtype, device)
+    #     T_world_cam = torch.bmm(T_world_cam_base, T_cam_base_cam)
+    #     T_cam_world = torch.inverse(T_world_cam)
+
+    #     # Object in true camera frame
+    #     obj_in_cam = torch.bmm(T_cam_world, object_pos_world_h.unsqueeze(-1)).squeeze(-1)[:, :3]
+
+    #     # Compute relative orientation quaternion
+    #     # Since pan/tilt already points camera Z-axis at object, the relative orientation
+    #     # represents the rotation needed to align camera with "canonical" view of object
         
-        # # Create object transform in world frame
-        # object_pos = object_pose_world[:3]
-        # object_quat = object_pose_world[3:7]  # [qx, qy, qz, qw]
-        # object_rot_matrix = pk.quaternion_to_matrix(object_quat.unsqueeze(0)).squeeze(0)  # [3, 3]
+    #     # Method 1: Use the camera's current orientation relative to world
+    #     # This gives you how the camera is oriented when looking at the object
+    #     R_cam_world = T_cam_world[:, :3, :3]
+    #     relative_quat = pk.matrix_to_quaternion(R_cam_world)
         
-        # # Object transform in world frame
-        # T_world_object = torch.eye(4, dtype=dtype, device=device)
-        # T_world_object[:3, :3] = object_rot_matrix
-        # T_world_object[:3, 3] = object_pos
-        # T_world_object = T_world_object.unsqueeze(0).expand(B, -1, -1)  # [B, 4, 4]
+    #     # Method 2: Compute orientation relative to "looking directly at object"
+    #     # If you want the quaternion that represents deviation from perfect alignment:
+    #     # 
+    #     # # Camera Z-axis after pan/tilt should point at object
+    #     # obj_direction = obj_in_cam / torch.norm(obj_in_cam, dim=1, keepdim=True)
+    #     # camera_z = torch.tensor([0., 0., 1.], device=device, dtype=dtype).expand_as(obj_direction)
+    #     # 
+    #     # # The relative quaternion represents rotation from perfect alignment
+    #     # # For perfect alignment, obj_direction should equal -camera_z (camera looks down -Z)
+    #     # # Compute quaternion that rotates camera_z to align with -obj_direction
+    #     # target_direction = -obj_direction
+    #     # cross_prod = torch.cross(camera_z, target_direction, dim=1)
+    #     # dot_prod = torch.sum(camera_z * target_direction, dim=1, keepdim=True)
+    #     # 
+    #     # # Handle the case where vectors are aligned or opposite
+    #     # cross_norm = torch.norm(cross_prod, dim=1, keepdim=True)
+    #     # 
+    #     # relative_quat = torch.zeros(B, 4, device=device, dtype=dtype)
+    #     # relative_quat[:, 3] = (1 + dot_prod.squeeze()) / 2  # w component
+    #     # 
+    #     # # For non-parallel vectors
+    #     # mask = cross_norm.squeeze() > 1e-6
+    #     # if mask.any():
+    #     #     relative_quat[mask, :3] = cross_prod[mask] / (2 * relative_quat[mask, 3:4])
 
-        # # Object pose in camera frame
-        # T_cam_object = torch.bmm(T_cam_world, T_world_object)
-        
-        # # Extract relative position (object position in camera frame)
-        # obj_pos_in_cam = T_cam_object[:, :3, 3]  # [B, 3]
-        
-        # # Extract relative orientation (object orientation in camera frame)
-        # obj_rot_in_cam = T_cam_object[:, :3, :3]  # [B, 3, 3]
-        # obj_quat_in_cam = pk.matrix_to_quaternion(obj_rot_in_cam)  # [B, 4]
-
-        # # Final diffs: [relative_position, relative_orientation]
-        # diffs = torch.cat([obj_pos_in_cam, obj_quat_in_cam], dim=1)  # [B, 7]
-        # return diffs
-
-    def project_nodesFIX2(self, nodes, object_pose_world):
-        """
-        Calculate pan and tilt angles for robot states to look at target object,
-        update camera transforms with pan/tilt, and compute relative pose between camera and object.
-
-        Args:
-            nodes: Tensor [B, 5] = (x, y, theta, pan, tilt)
-            object_pose_world: Tensor [3] = object xyz in world
-
-        Returns:
-            diffs: [B, 7] = (object xyz in cam frame, relative orientation quaternion)
-        """
-        # ...existing code...
-        device = nodes.device
-        dtype = nodes.dtype
-        B = nodes.shape[0]
-
-        # Camera mount config (robot -> camera base)
-        cam_pos_robot = torch.tensor([0.0450, 0.0523, 1.2607], dtype=dtype, device=device)
-        cam_rot_robot = torch.tensor(
-            [[0.0, 0.0, 1.0],
-            [1.0, 0.0, 0.0],
-            [0.0, 1.0, 0.0]], dtype=dtype, device=device
-        )
-
-        # Extract robot states
-        robot_states = nodes[:, :3]  # [x, y, theta]
-
-        # Object position homogeneous
-        object_pos_world_h = torch.cat([object_pose_world[:3], torch.ones(1, dtype=dtype, device=device)])
-        object_pos_world_h = object_pos_world_h.unsqueeze(0).expand(B, -1)
-
-        # Camera base in robot frame
-        T_robot_camera_base = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
-        T_robot_camera_base[:, :3, :3] = cam_rot_robot.unsqueeze(0).repeat(B, 1, 1)
-        T_robot_camera_base[:, :3, 3] = cam_pos_robot.unsqueeze(0).repeat(B, 1)
-
-        # Robot -> world
-        cos_theta = torch.cos(robot_states[:, 2])
-        sin_theta = torch.sin(robot_states[:, 2])
-        T_world_robot = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
-        T_world_robot[:, 0, 0] = cos_theta
-        T_world_robot[:, 0, 1] = -sin_theta
-        T_world_robot[:, 1, 0] = sin_theta
-        T_world_robot[:, 1, 1] = cos_theta
-        T_world_robot[:, 0, 3] = robot_states[:, 0]
-        T_world_robot[:, 1, 3] = robot_states[:, 1]
-
-        # Camera base in world
-        T_world_cam_base = torch.bmm(T_world_robot, T_robot_camera_base)
-
-        # Object in camera base frame (before pan/tilt)
-        T_cam_base_world = torch.inverse(T_world_cam_base)
-        obj_in_cam_base = torch.bmm(T_cam_base_world, object_pos_world_h.unsqueeze(-1)).squeeze(-1)[:, :3]
-        dx, dy, dz = obj_in_cam_base[:, 0], obj_in_cam_base[:, 1], obj_in_cam_base[:, 2]
-
-        # Pan/tilt calculation
-        pan = torch.atan2(dx, dz)
-        tilt = torch.atan2(dy, torch.sqrt(dx**2 + dz**2))
-        pan = torch.clamp(pan, -3.9, 1.5)
-        tilt = torch.clamp(tilt, -1.53, 0.79)
-
-        # Save into nodes
-        nodes[:, 3] = pan
-        nodes[:, 4] = tilt
-
-        # --- Apply pan/tilt to camera transform ---
-        def make_pan_tilt_transform(pan, tilt, dtype, device):
-            B = pan.shape[0]
-            T = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
-
-            # Pan: rotation around Y
-            cos_p, sin_p = torch.cos(pan), torch.sin(pan)
-            R_pan = torch.stack([
-                torch.stack([ cos_p, torch.zeros_like(pan), sin_p], dim=1),
-                torch.stack([ torch.zeros_like(pan), torch.ones_like(pan), torch.zeros_like(pan)], dim=1),
-                torch.stack([-sin_p, torch.zeros_like(pan), cos_p], dim=1)
-            ], dim=1)
-
-            # Tilt: rotation around X
-            cos_t, sin_t = torch.cos(tilt), torch.sin(tilt)
-            R_tilt = torch.stack([
-                torch.stack([ torch.ones_like(tilt), torch.zeros_like(tilt), torch.zeros_like(tilt)], dim=1),
-                torch.stack([ torch.zeros_like(tilt), cos_t, -sin_t], dim=1),
-                torch.stack([ torch.zeros_like(tilt), sin_t,  cos_t], dim=1)
-            ], dim=1)
-
-            R = torch.bmm(R_tilt, R_pan)  # tilt ∘ pan
-            T[:, :3, :3] = R
-            return T
-
-        T_cam_base_cam = make_pan_tilt_transform(pan, tilt, dtype, device)
-        T_world_cam = torch.bmm(T_world_cam_base, T_cam_base_cam)
-        T_cam_world = torch.inverse(T_world_cam)
-
-        # Object in true camera frame
-        obj_in_cam = torch.bmm(T_cam_world, object_pos_world_h.unsqueeze(-1)).squeeze(-1)[:, :3]
-
-        # Compute relative orientation quaternion
-        # Since pan/tilt already points camera Z-axis at object, the relative orientation
-        # represents the rotation needed to align camera with "canonical" view of object
-        
-        # Method 1: Use the camera's current orientation relative to world
-        # This gives you how the camera is oriented when looking at the object
-        R_cam_world = T_cam_world[:, :3, :3]
-        relative_quat = pk.matrix_to_quaternion(R_cam_world)
-        
-        # Method 2: Compute orientation relative to "looking directly at object"
-        # If you want the quaternion that represents deviation from perfect alignment:
-        # 
-        # # Camera Z-axis after pan/tilt should point at object
-        # obj_direction = obj_in_cam / torch.norm(obj_in_cam, dim=1, keepdim=True)
-        # camera_z = torch.tensor([0., 0., 1.], device=device, dtype=dtype).expand_as(obj_direction)
-        # 
-        # # The relative quaternion represents rotation from perfect alignment
-        # # For perfect alignment, obj_direction should equal -camera_z (camera looks down -Z)
-        # # Compute quaternion that rotates camera_z to align with -obj_direction
-        # target_direction = -obj_direction
-        # cross_prod = torch.cross(camera_z, target_direction, dim=1)
-        # dot_prod = torch.sum(camera_z * target_direction, dim=1, keepdim=True)
-        # 
-        # # Handle the case where vectors are aligned or opposite
-        # cross_norm = torch.norm(cross_prod, dim=1, keepdim=True)
-        # 
-        # relative_quat = torch.zeros(B, 4, device=device, dtype=dtype)
-        # relative_quat[:, 3] = (1 + dot_prod.squeeze()) / 2  # w component
-        # 
-        # # For non-parallel vectors
-        # mask = cross_norm.squeeze() > 1e-6
-        # if mask.any():
-        #     relative_quat[mask, :3] = cross_prod[mask] / (2 * relative_quat[mask, 3:4])
-
-        # Final diffs: [object_position_in_camera, camera_orientation_quaternion]
-        diffs = torch.cat([obj_in_cam, relative_quat], dim=1)  # [B, 7]
-        return diffs
+    #     # Final diffs: [object_position_in_camera, camera_orientation_quaternion]
+    #     diffs = torch.cat([obj_in_cam, relative_quat], dim=1)  # [B, 7]
+    #     return diffs
 
 
     def tensors_to_networkx(self, nodes_tensor, neighbors_tensor, scores_tensor):
@@ -493,7 +426,12 @@ class PSPRM:
                                         weights.tolist()))
         
         G.add_weighted_edges_from(edge_list_with_weights)
-        
+        # print(f"Number of connected components in PRM: {nx.number_connected_components(G)}")
+        # # Print top 5 components with number of nodes
+        # components = list(nx.connected_components(G))
+        # components.sort(key=len, reverse=True)
+        # for i, comp in enumerate(components[:5]):
+        #     print(f"Component {i}: {len(comp)} nodes")
         return G
     
 
@@ -655,6 +593,19 @@ class Solution:
 
         # print(f"Simplified path: {simplified_path}") 
         
+        # After simplification, try to skip nodes with low scores
+        final_path = [simplified_path[0]]
+        for i in range(1, len(simplified_path) - 1):
+            node_id = simplified_path[i]
+            if graph.nodes[node_id]['score'] < 0.3:
+                if not in_collision(
+                    np.array([x_coords[final_path[-1]], y_coords[final_path[-1]], theta_coords[final_path[-1]]]),
+                    np.array([x_coords[simplified_path[i + 1]], y_coords[simplified_path[i + 1]], theta_coords[simplified_path[i + 1]]])
+                ):
+                    continue
+            final_path.append(node_id)
+
+
         # # After simplicification, attempt to skip nodes where pan is at the bounds 
         # # Note that collision checking must be performed
         # final_path = [simplified_path[0]]

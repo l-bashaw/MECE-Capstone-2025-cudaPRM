@@ -52,41 +52,25 @@ class BatchFk():
         
         # floating can be moved in xyz and theta, grounded can only be moved in xy and theta. TODO: Have not found a way to make this generic
         urdf_path = add_base_joints(urdf_path, type =  "ground")
-        # if Path(Path(urdf_path).with_suffix(".pk.urdf")).exists():
-        #     urdf_path = Path(urdf_path).with_suffix(".pk.urdf")
-        # else:
-        #     print("No tuned URDF file found. Using original URDF.")
+        
         chain = pk.build_serial_chain_from_urdf(open(urdf_path, "rb").read(), ee_link_name)
         
         self.dof = 5
        
-        # # prints out list of joint names
-        # print(chain.get_joint_parameter_names())
-        # print("Chain:", chain)
         self.chain = chain.to(device=device)
         self.batch_size = batch_size
         self.states = torch.zeros((batch_size, self.dof), dtype=torch.float32, device=device)
         self.pk_states = torch.zeros((batch_size, self.dof), dtype=torch.float32, device=device)
-        
-        # self.joint_states = torch.zeros((batch_size, 2), dtype=torch.float32, device=device)
-        # self.base_states = torch.zeros((batch_size, 3), dtype=torch.float32, device=device)
+       
         self.camera_matrices = torch.zeros((batch_size, 4, 4), dtype=torch.float32, device=device)
-        # self.cos_theta = torch.zeros((batch_size, 1), dtype=torch.float32, device=device)
-        # self.sin_theta = torch.zeros((batch_size, 1), dtype=torch.float32, device=device)
-        # self.translations = torch.zeros((batch_size, 2), dtype=torch.float32, device=device)
-        # self.zeros = torch.zeros_like(self.cos_theta, device=device)
-        # self.ones = torch.ones_like(self.cos_theta, device=device)
-        # self.base_transforms = torch.zeros((batch_size, 3, 4), dtype=torch.float32, device=device)
-        # self.world_transforms = torch.zeros((batch_size, 4, 4), dtype=torch.float32, device=device)
+      
         self.camera_positions_world = torch.zeros((batch_size, 3), dtype=torch.float32, device=device)
         self.camera_quaternions_world = torch.zeros((batch_size, 4), dtype=torch.float32, device=device)
-        # self.base_transforms = torch.zeros((self.base_states.size(0), 4, 4), device=self.base_states.device)  # Preallocate memory
         
 
     def batch_fk(self, states : NDArray | torch.Tensor) -> tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         # Convert states to tensor and move to device
         # assert states.shape[0] == self.batch_size
-        start_time = time.time()
         if isinstance(states, np.ndarray):
             self.states = torch.tensor(states, dtype=torch.float32, device=self.device)
         else:
@@ -99,7 +83,6 @@ class BatchFk():
         self.pk_states = self.states
         
         # Perform FK in batch
-        start_time = time.time()
         ret = self.chain.forward_kinematics(self.pk_states, end_only=True)
         tg = ret
         self.camera_matrices = tg.get_matrix()  # Shape: (batch_size, 4, 4)
@@ -109,36 +92,7 @@ class BatchFk():
         self.camera_quaternions_world = pk.matrix_to_quaternion(self.camera_matrices[:, :3, :3])  # Shape: (batch_size, 4)
         # wxyz to xyzw
         self.camera_quaternions_world = torch.roll(self.camera_quaternions_world, shifts=-1, dims=1)
-        # For Standard URDF
-        # Precompute cosine and sine values for the batch
-        # self.cos_theta = torch.cos(self.base_states[:, 2])  # Shape: (batch_size,)
-        # self.sin_theta = torch.sin(self.base_states[:, 2])  # Shape: (batch_size,)
-        # self.translations = self.base_states[:, :2]         # Shape: (batch_size, 2)
-
-        # Preallocate transformation matrices for the batch
         
-        # Populate the transformation matrices
-        # self.base_transforms[:, 0, 0] = self.cos_theta
-        # self.base_transforms[:, 0, 1] = -self.sin_theta
-        # self.base_transforms[:, 1, 0] = self.sin_theta
-        # self.base_transforms[:, 1, 1] = self.cos_theta
-        # self.base_transforms[:, :2, 3] = self.translations
-        # self.base_transforms[:, 2, 2] = 1  # Z-axis remains unchanged
-        # self.base_transforms[:, 3, 3] = 1  # Homogeneous coordinate
-        
-        # start_time = time.time()
-        # # Combine base and camera transformations
-        # # self.world_transforms = torch.matmul(self.base_transforms, self.camera_matrices)
-        # self.world_transforms = torch.bmm(self.base_transforms, self.camera_matrices)
-        # # Extract positions from world transforms
-        # self.camera_positions_world = self.world_transforms[:, :3, 3]  # Shape: (batch_size, 3)
-        # # Extract rotation matrices correctly
-        # self.rotation_matrices = self.world_transforms[:, :3, :3]  # Ensure shape: (batch_size, 3, 3)
-        # # Convert rotation matrices to quaternions
-        # self.camera_quaternions_world = pk.matrix_to_quaternion(self.rotation_matrices)  # Shape: (batch_size, 4)
-        # self.camera_quaternions_world = self.camera_quaternions_world / torch.norm(self.camera_quaternions_world, dim=1, keepdim=True)
-        # self.camera_quaternions_world = torch.roll(self.camera_quaternions_world, shifts=-1, dims=1)
-        # print("Quaternion time:", time.time() - start_time)
         return self.camera_positions_world, self.camera_quaternions_world, self.camera_matrices
     
     def transform_poses_batch(self, from_transforms, to_transforms):

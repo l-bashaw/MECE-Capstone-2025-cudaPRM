@@ -1,10 +1,4 @@
-
-
-
-
-
-
-
+import os
 import time
 import torch
 
@@ -15,101 +9,31 @@ from prm import PSPRM, Solution
 from nn.inference import ModelLoader
 from utils.EnvLoader import EnvironmentLoader
 
-def compute_camera_diffs(nodes: np.ndarray, object_pose_world: np.ndarray):
-    """
-    Given robot states (with pan/tilt already filled) and an object position in world,
-    compute diffs = [obj_in_cam (3), cam_quat_in_world (4)] for each node.
-    """
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    dtype = torch.float32
-   
-    nodes_t = torch.tensor(nodes, dtype=dtype, device=device)
-    B = nodes_t.shape[0]
 
-    # Camera mount config (zero pan/tilt reference)
-    cam_pos_robot = torch.tensor([0.0450, 0.0523, 1.2607], dtype=dtype, device=device)
-    cam_rot_robot = torch.tensor(
-        [[0.0, 0.0, 1.0],
-         [1.0, 0.0, 0.0],
-         [0.0, 1.0, 0.0]], dtype=dtype, device=device
-    )
+def calculate_trajectory_perc_score(prm: PSPRM, trajectory, object_pose, object_label, model):
+    trajectory = torch.tensor(trajectory, dtype=torch.float32, device='cuda')  # (N, 5)
+    model_input = prm.create_model_input(trajectory, object_pose, object_label)
+    # print(model_input)
+    # print any NaN values in model_input
+    # if torch.any(torch.isnan(model_input)):
+    #     print("Warning: NaN values in model input")
+    #     # print the nan values
+    #     print("NaN values:", model_input[torch.isnan(model_input)])
+    p_scores = model(model_input)
 
-    # Extract states
-    robot_xytheta = nodes_t[:, :3]  # (x, y, theta)
-    pan = nodes_t[:, 3]
-    tilt = nodes_t[:, 4]
-
-    # Object homogeneous
-    object_pos_world_h = torch.cat([object_pose_world[:3], torch.ones(1, dtype=dtype, device=device)])
-    object_pos_world_h = object_pos_world_h.unsqueeze(0).expand(B, -1)
-
-    # Camera mount in robot frame
-    T_robot_camera_base = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
-    T_robot_camera_base[:, :3, :3] = cam_rot_robot.unsqueeze(0).repeat(B, 1, 1)
-    T_robot_camera_base[:, :3, 3] = cam_pos_robot.unsqueeze(0).repeat(B, 1)
-
-    # Robot -> world
-    cos_theta = torch.cos(robot_xytheta[:, 2])
-    sin_theta = torch.sin(robot_xytheta[:, 2])
-    T_world_robot = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
-    T_world_robot[:, 0, 0] = cos_theta
-    T_world_robot[:, 0, 1] = -sin_theta
-    T_world_robot[:, 1, 0] = sin_theta
-    T_world_robot[:, 1, 1] = cos_theta
-    T_world_robot[:, 0, 3] = robot_xytheta[:, 0]
-    T_world_robot[:, 1, 3] = robot_xytheta[:, 1]
-
-    # Camera base in world
-    T_world_cam_base = torch.bmm(T_world_robot, T_robot_camera_base)
-
-    # Pan/tilt transform
-    def make_pan_tilt_transform(pan, tilt):
-        B = pan.shape[0]
-        T = torch.eye(4, dtype=dtype, device=device).unsqueeze(0).repeat(B, 1, 1)
-
-        # Pan: rotation around Y
-        cos_p, sin_p = torch.cos(pan), torch.sin(pan)
-        R_pan = torch.stack([
-            torch.stack([ cos_p, torch.zeros_like(pan), sin_p], dim=1),
-            torch.stack([ torch.zeros_like(pan), torch.ones_like(pan), torch.zeros_like(pan)], dim=1),
-            torch.stack([-sin_p, torch.zeros_like(pan), cos_p], dim=1)
-        ], dim=1)
-
-        # Tilt: rotation around X
-        cos_t, sin_t = torch.cos(tilt), torch.sin(tilt)
-        R_tilt = torch.stack([
-            torch.stack([ torch.ones_like(tilt), torch.zeros_like(tilt), torch.zeros_like(tilt)], dim=1),
-            torch.stack([ torch.zeros_like(tilt), cos_t, -sin_t], dim=1),
-            torch.stack([ torch.zeros_like(tilt), sin_t,  cos_t], dim=1)
-        ], dim=1)
-
-        R = torch.bmm(R_tilt, R_pan)  # tilt ∘ pan
-        T[:, :3, :3] = R
-        return T
-
-    T_cam_base_cam = make_pan_tilt_transform(pan, tilt)
-    T_world_cam = torch.bmm(T_world_cam_base, T_cam_base_cam)
-    T_cam_world = torch.inverse(T_world_cam)
-
-    # Object in true camera frame
-    obj_in_cam = torch.bmm(T_cam_world, object_pos_world_h.unsqueeze(-1)).squeeze(-1)[:, :3]
-
-    # Camera orientation quaternion
-    R_cam_world = T_cam_world[:, :3, :3]
-    cam_quat = pk.matrix_to_quaternion(R_cam_world)
-
-    diffs = torch.cat([-obj_in_cam, cam_quat], dim=1)  # [B, 7]
-
-    return diffs
-
-def calculate_trajectory_perc_score(trajectory, object_pose, object_label, model):
-    diffs = compute_camera_diffs(trajectory, object_pose_world=object_pose)  # [N, 7]
-    diffs = torch.cat((diffs, object_label.unsqueeze(0).repeat(diffs.shape[0], 1)), dim=1)
-    p_scores = model(diffs)
-    
+    # print(p_scores)
     # Move to CPU and numpy
     p_scores = p_scores.detach().cpu().numpy()
-    # return stats
+    # print(p_scores)
+
+    # Catch if any NaN values
+    # if np.any(np.isnan(p_scores)):
+    #     print("Warning: NaN values in perc scores, setting to 0")
+    #     # print number of NaN values
+    #     print("Number of NaN values:", np.sum(np.isnan(p_scores)))
+    #     # print the nan values
+    #     print("NaN values:", p_scores[np.isnan(p_scores)])
+        # print(p_scores)   # return stats
     return {
         'mean': float(np.mean(p_scores)),
         'std': float(np.std(p_scores)),
@@ -123,31 +47,32 @@ def main():
     dtype = torch.float32
     env_config_file = "/home/lb73/cudaPRM/planning/resources/scenes/environment/multigoal_demo.yaml"  
     model_path = "/home/lb73/cudaPRM/planning/resources/models/percscore-nov12-50k.pt"
-    seed = 2387
+    SEED = 2387
 
     env_loader = EnvironmentLoader(device=device)
     env = env_loader.load_world(env_config_file)
 
     model_loader = ModelLoader(label_size=3, max_batch_size=10000, use_trt=False)
-    model = model_loader.load_model(model_path)
+    MODEL = model_loader.load_model(model_path)
 
     # ----------------------------------- Experiment parameters -----------------------------------
     starts = np.array([
-        [0.5, -3, 3.14159/2, 0.0, 0.0],
-        [1.0, -3, 3.14159/2, 0.0, 0.0],
-        [1.5, -3, 3.14159/2, 0.0, 0.0],
-        [2.0, -3, 3.14159/2, 0.0, 0.0],
-        [2.5, -3, 3.14159/2, 0.0, 0.0]
-    ])
-    goals = np.array([
-        [0.5, 2.5, -3.14159, 0.0, 0.0],
-        [1.0, 2.5, -3.14159, 0.0, 0.0],
-        [1.5, -2.5, -3.14159, 0.0, 0.0],
-        [2.0, -2.5, -3.14159, 0.0, 0.0],
-        [2.5, -3, -3.14159, 0.0, 0.0]
+        [2.826, -2.448,  1.021, 0.0, 0.0],
+        [0.533, -3.432,  2.610, 0.0, 0.0],
+        [2.037, -3.141,  2.309, 0.0, 0.0],
+        [0.645, -2.227,  2.928, 0.0, 0.0],
+        [2.681, -2.115, -1.097, 0.0, 0.0],
     ])
 
-    MAX_SKIP_DIST = 4
+    goals = np.array([
+        [2.757,  2.963, -0.903, 0.0, 0.0],
+        [2.215,  2.920, -0.072, 0.0, 0.0],
+        [2.861,  3.286, -0.013, 0.0, 0.0],
+        [0.378,  1.193,  1.093, 0.0, 0.0],
+        [-0.273, 0.668,  2.012, 0.0, 0.0],
+    ])
+
+    MAX_SKIP_DIST = 1.5
 
     # label_map = {
     #   "human": [1, 0, 0],
@@ -167,8 +92,8 @@ def main():
     cup_label = torch.tensor([0.0, 0.0, 1.0], dtype=dtype, device=device)
 
     objects = [
-        (human_pose, human_label, 'human'),
-        (monitor_pose, monitor_label, 'monitor'),
+        # (human_pose, human_label, 'human'),
+        # (monitor_pose, monitor_label, 'monitor'),
         (cup_pose, cup_label, 'cup')
     ]
 
@@ -185,8 +110,8 @@ def main():
     print("Warming up planner...")
     env['object_pose'] = objects[0][0]
     env['object_label'] = objects[0][1]
-    prm = PSPRM(model, env)
-    prm.build_prm(seed)
+    prm = PSPRM(MODEL, env)
+    prm.build_prm(SEED)
     s_id, g_id = prm.addStartAndGoal(starts[0], goals[0])
     path = prm.a_star_search(start_id=s_id, goal_id=g_id, alpha=1, beta=1)
     sol = Solution(path)
@@ -199,6 +124,23 @@ def main():
     # ----------------------------------- Expierment/Planning ----------------------------------
     # ------------------------------------------------------------------------------------------
     
+        
+    def generate_trajectory(env, model, seed, start, goal):
+        prm = PSPRM(model, env)
+        t1 = time.time()
+        prm.build_prm(seed)
+        t2 = time.time()
+
+        t1x = time.time()
+        s_id, g_id = prm.addStartAndGoal(start, goal)
+        path = prm.a_star_search(start_id=s_id, goal_id=g_id, alpha=.25, beta=.5)
+        sol = Solution(path)
+        sol.simplify(prm, env, max_skip_dist=MAX_SKIP_DIST)
+        trajectory = sol.generate_trajectory_rsplan(prm, turning_radius=1)      
+        trajectory = sol.project_trajectory(env['object_pose'])
+        t2x = time.time()
+        return trajectory, (t2 - t1), (t2x - t1x), sol.path
+
     trajectories = {}
     
     # Set object in env
@@ -210,48 +152,102 @@ def main():
         trajectories[obj_name] = []
         
         # Plan for each start/goal pair
+        plan = 0
         for start in starts:
             for goal in goals:
-                times = []
-                for i in range(100):  # 100 trials per start/goal pair, 
-                    t1 = time.time()
-                    # Build PRM and add start and goal
-                    prm = PSPRM(model, env)
-                    prm.build_prm(seed)
-                    s_id, g_id = prm.addStartAndGoal(start, goal)
+                b_times = []
+                p_times = []
+                for i in range(10):  # 100 trials per start/goal pair, 
+                    trajectory, build_time, plan_time, path = generate_trajectory(env, MODEL, SEED, start, goal)
+                    b_times.append(build_time)
+                    p_times.append(plan_time)
+                    print(len(path))
+                    # print(len(trajectory))
+                # Delete first time (warmup)
 
-                    # Find the path and simplify it
-                    path = prm.a_star_search(start_id=s_id, goal_id=g_id, alpha=1, beta=1)
-                    sol = Solution(path)
-                    sol.simplify(prm, env, max_skip_dist=MAX_SKIP_DIST)
-
-                    # Generate trajectory and project it to the object
-                    trajectory = sol.generate_trajectory_rsplan(prm, turning_radius=1)
-                    trajectory = sol.project_trajectory(env['object_pose'])
-                    t2 = time.time()
-                    times.append(t2 - t1)
-
-                times = np.array(times)
+                b_times = b_times[1:]
+                p_times = p_times[1:]
+                b_times = np.array(b_times)
+                p_times = np.array(p_times)
                 timing_stats = {
-                    'mean': np.mean(times),
-                    'std': np.std(times),
-                    'min': np.min(times),
-                    'max': np.max(times)
+                    'mean_build': np.mean(b_times),
+                    'mean_plan': np.std(p_times)
+                    # 'min': np.min(times),
+                    # 'max': np.max(times)
                 }
+                # # Timing boxplot stats
+                # boxplot_stats = {
+                #     'whislo': np.min(times),  # Bottom whisker position
+                #     'q1': np.percentile(times, 25),  # First quartile (
+                #     'med': np.median(times),  # Median
+                #     'q3': np.percentile(times, 75),  # Third quartile
+                #     'whishi': np.max(times),  # Top whisker position
+                # }
                 # print(timing_stats)
 
-                trajectory_perc_score = calculate_trajectory_perc_score(trajectory, env['object_pose'], env['object_label'], model=model)
+                trajectory_perc_score = calculate_trajectory_perc_score(prm, trajectory, env['object_pose'], env['object_label'], model=MODEL)
+                # diffs = np.diff(trajectory, axis=0)              # shape (N-1, D)
+                # segment_lengths = np.linalg.norm(diffs, axis=1)  # shape (N-1,)
+                # path_length = np.sum(segment_lengths)
+
+                # Get x, y, theta, pan, tilt for nodes in path
+                netx_graph = prm.graph
+                path_ = []
+                for node_id in path:
+                    node = netx_graph.nodes[node_id]
+                    x = node['x']
+                    y = node['y']
+                    theta = node['theta']
+                    pan = node['pan']
+                    tilt = node['tilt']
+                    path_.append([x, y, theta, pan, tilt])
+                path_ = np.array(path_)  # shape (N, 5)
+                diffs = np.diff(path_, axis=0)              # shape (N-1, D)
+                segment_lengths = np.linalg.norm(diffs, axis=1)  # shape (N-1,)
+                path_length = np.sum(segment_lengths)
+
+
                 trajectories[obj_name].append({
-                    "start": start.tolist(),
-                    "goal": goal.tolist(),
-                    # "trajectory": trajectory.tolist(), 
+                    # "start": start.tolist(),
+                    # "goal": goal.tolist(),
+                    "trajectory": trajectory.tolist(), 
                     "timing": timing_stats, 
-                    "perc_score": trajectory_perc_score
+                    # "boxplot": boxplot_stats,
+                    # "perc_score": trajectory_perc_score,
+                    "path_length": float(path_length)
                 })  
+
+
+                # if not os.path.exists(f'./trajectories_for_e22/plan_{plan}/'):
+                #     os.makedirs(f'./trajectories_for_e22/plan_{plan}/')
+                
+                # # Save trajectory to csv and reorder to pan tilt x y theta
+                # traj_ = trajectory[:, [3, 4, 0, 1, 2]]  # reorder to pan tilt x y theta
+                # np.savetxt(f'./trajectories_for_e22/plan_{plan}/path.csv', traj_, delimiter=',')
+
+                # plan += 1
+
+    for obj in objects:
+        obj_name = obj[2]
+        path_lengths = [traj['path_length'] for traj in trajectories[obj_name]]
+        avg_path_length = float(np.mean(path_lengths))
+        trajectories['Average Path Length'] = avg_path_length
+    
+    for obj in objects:
+        obj_name = obj[2]
+        build_times = [traj['timing']['mean_build'] for traj in trajectories[obj_name]]
+        avg_build_time = float(np.mean(build_times))
+        trajectories['Average Build Time'] = avg_build_time
+    
+    for obj in objects:
+        obj_name = obj[2]
+        plan_times = [traj['timing']['mean_plan'] for traj in trajectories[obj_name]]
+        avg_plan_time = float(np.mean(plan_times))
+        trajectories['Average Plan Time'] = avg_plan_time
 
     # Save trajectories to json
     import json
-    with open('./comparison_experiment_trajectories.json', 'w') as f:
+    with open('./trajs_for_e.json', 'w') as f:
         json.dump(trajectories, f, indent=4)
 
     return
