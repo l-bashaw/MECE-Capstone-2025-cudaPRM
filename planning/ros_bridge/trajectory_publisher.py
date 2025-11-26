@@ -31,20 +31,21 @@ def publish_trajectory(ws, trajectory):
     }
     ws.send(json.dumps(msg))
 
-def main():
+# # Example usage
+# def main():
 
-    ws = websocket.create_connection(ROSBRIDGE_SERVER)
+#     ws = websocket.create_connection(ROSBRIDGE_SERVER)
 
-    while True:
-        trajectory = [
-            [1.0, 2.0, 3.0, 4.0, 5.0],
-            [6.0, 7.0, 8.0, 9.0, 10.0],
-            [11.0, 12.0, 13.0, 14.0, 15.0]
-        ]
+#     while True:
+#         trajectory = [
+#             [1.0, 2.0, 3.0, 4.0, 5.0],
+#             [6.0, 7.0, 8.0, 9.0, 10.0],
+#             [11.0, 12.0, 13.0, 14.0, 15.0]
+#         ]
 
-        publish_trajectory(ws, trajectory)
-        time.sleep(0.02)
-    ws.close()
+#         publish_trajectory(ws, trajectory)
+#         time.sleep(0.02)
+#     ws.close()
 
-if __name__ == "__main__":
-    main()
+# if __name__ == "__main__":
+#     main()

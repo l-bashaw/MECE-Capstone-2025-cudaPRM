@@ -1,20 +1,9 @@
-mamba create -n cuprm python=3.10
-mamba activate cuprm
-pip install trimesh, numpy, torch, matplotlib, rsplan
-pip install pytorch-kinematics, lightning, pybind11, packaging 
-
-To compile the code:  
-    cd planning
-    python setup_robust.py build_ext --inplace
-
-The module will live in '/planning' alongside the main scripts
-
------------------ Optional Installs ------------------- 
-python3 -m pip install --upgrade tensorrt
-https://docs.nvidia.com/deeplearning/tensorrt/latest/installing-tensorrt/installing.html
-
-pip install torch2trt
-https://github.com/NVIDIA-AI-IOT/torch2trt
-
-# Install isaacsim (do the pip installation)
-https://docs.isaacsim.omniverse.nvidia.com/4.2.0/installation/install_python.html
+trimesh
+numpy
+torch
+matplotlib
+rsplan
+pytorch-kinematics
+lightning
+pybind11
+packaging

@@ -51,21 +51,21 @@ def start_rosbridge_thread():
     thread = threading.Thread(target=rosbridge_listener, daemon=True)
     thread.start()
 
-# Example usage:
-if __name__ == "__main__":
-    start_rosbridge_thread()
-    import time
-    while True:
-        poses, names = get_latest_poses_and_names()
-        if poses and names:
-            print("Latest poses and names:")
-            for i, (pose, name) in enumerate(zip(poses, names)):
-                print(f"{i}: {name} -> {pose}")
-                print("x: ", pose['position']['x'], 
-                      "y: ", pose['position']['y'], 
-                      "z: ", pose['position']['z'])
-                print("qx:", pose['orientation']['x'], 
-                      "qy:", pose['orientation']['y'], 
-                      "qz:", pose['orientation']['z'], 
-                      "qw:", pose['orientation']['w'])
-        time.sleep(1)
+# # Example usage:
+# if __name__ == "__main__":
+#     start_rosbridge_thread()
+#     import time
+#     while True:
+#         poses, names = get_latest_poses_and_names()
+#         if poses and names:
+#             print("Latest poses and names:")
+#             for i, (pose, name) in enumerate(zip(poses, names)):
+#                 print(f"{i}: {name} -> {pose}")
+#                 print("x: ", pose['position']['x'], 
+#                       "y: ", pose['position']['y'], 
+#                       "z: ", pose['position']['z'])
+#                 print("qx:", pose['orientation']['x'], 
+#                       "qy:", pose['orientation']['y'], 
+#                       "qz:", pose['orientation']['z'], 
+#                       "qw:", pose['orientation']['w'])
+#         time.sleep(1)
