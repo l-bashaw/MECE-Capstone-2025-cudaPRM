@@ -16,6 +16,5 @@ https://docs.nvidia.com/deeplearning/tensorrt/latest/installing-tensorrt/install
 pip install torch2trt
 https://github.com/NVIDIA-AI-IOT/torch2trt
 
-
 # Install isaacsim (do the pip installation)
 https://docs.isaacsim.omniverse.nvidia.com/4.2.0/installation/install_python.html

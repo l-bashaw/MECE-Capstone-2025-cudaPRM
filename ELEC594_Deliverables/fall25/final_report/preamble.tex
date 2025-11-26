@@ -1,0 +1,445 @@
+\usepackage[utf8]{inputenc}
+
+%\setlength{\textfloatsep}{0.5em}
+%\setlength{\belowcaptionskip}{0.5pt}
+
+%% utility
+\usepackage{comment}
+\usepackage{xspace}
+\usepackage{graphicx}
+
+\usepackage{overpic}
+\usepackage{svg}
+\usepackage{xcolor}
+\usepackage{bm}
+\usepackage[hang,flushmargin]{footmisc}
+\usepackage{booktabs}
+\usepackage{tabularx}
+
+%% tables
+\usepackage{tabularx}
+\usepackage{multirow}
+\usepackage{booktabs}
+\usepackage{colortbl}
+\usepackage{float}
+\usepackage{placeins}
+
+\usepackage{array}
+% \newcolumntype{P}[1]{>{\centering\arraybackslash}p{#1}}  % Define centered p{} column type
+
+% \renewcommand{\arraystretch}{1.3}
+
+% \usepackage{etoolbox}
+% \makeatletter
+% \patchcmd{\@makecaption}
+% {\scshape}
+% {}
+% {}
+% {}
+% \newcommand{\onetagright}{\tagsleft@false}
+% \makeatother
+
+%%  math
+\let\proof\relax
+\let\endproof\relax
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{siunitx}
+%\usepackage{bm}
+
+%% theorems
+% \renewcommand\qedsymbol{\newline$\square$}
+% \newtheoremstyle{main}
+% {1em}                                                % space above
+% {1em}                                                % space below
+% {\itshape}                                        % bodyfont
+% {0pt}                                                % indent
+% {\scshape}                                           % head font
+% {\\*}                                                % head punctuation
+% {2pt}                                                % head space
+% {\thmname{#1}\thmnumber{ #2}: \thmnote{\itshape #3}} % head spec
+
+%\theoremstyle{main}
+\newtheorem{definition}{Definition}[section]
+\newtheorem{subdefinition}{Definition}[definition]
+\newtheorem{theorem}{Theorem}[section]
+\newtheorem{lemma}{Lemma}[section]
+\newtheorem{proposition}{Proposition}[section]
+\newtheorem{claim}{Claim}[section]
+\newtheorem{assumption}{Assumption}[]
+\newtheorem{subassumption}{Assumption}[assumption]
+\renewcommand{\thesubassumption}{\theassumption\alph{subassumption}}
+
+\usepackage{environ}
+
+%% algorithms
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+
+% \newcommand{\removelatexerror}{\let\@latex@error\@gobble}
+
+%% microtype
+\usepackage[
+	activate   = {true},
+	protrusion = false,
+	expansion  = true,
+	kerning    = true,
+	spacing    = true,
+	tracking   = false,
+	auto       = true,
+	selected   = true,
+	factor     = 2000,
+	stretch    = 50,
+	shrink     = 20,
+]{microtype}
+
+%% biblatex
+\usepackage{csquotes}
+\usepackage[
+	maxbibnames=99,
+	maxcitenames=2,
+	natbib=true,
+	style=numeric-comp,
+	backend=biber,
+	sorting=none,
+	giveninits=true,
+	url=false,
+	doi=false,
+	eprint=false,
+	isbn=false,
+]{biblatex}
+
+\addbibresource{references.bib}
+\renewcommand*{\bibfont}{\footnotesize}
+\definecolor{gg}{RGB}{240, 74, 0}
+
+%% hyperref
+\makeatletter
+\let\NAT@parse\undefined
+\makeatother
+\usepackage[pdfa,colorlinks,bookmarksopen,bookmarksnumbered,allcolors=gg]{hyperref}
+% \usepackage{cite}
+\usepackage[english]{babel}
+%% autoref
+\usepackage[nameinlink,capitalise]{cleveref}
+\crefname{line}{line}{lines}
+\crefname{figure}{Fig.}{Figs.}
+\Crefname{figure}{Fig.}{Figs.}
+\crefname{equation}{Eq.}{Eqs.}
+\Crefname{equation}{Eq.}{Eqs.}
+\crefname{section}{Sec.}{Secs.}
+\Crefname{section}{Sec.}{Secs.}
+\crefname{definition}{Def.}{Defs.}
+\Crefname{definition}{Def.}{Defs.}
+\crefname{algorithm}{Alg.}{Algs.}
+\Crefname{algorithm}{Alg.}{Algs.}
+\crefname{assumption}{Asm.}{Asms.}
+\Crefname{assumption}{Asm.}{Asms.}
+\crefname{subassumption}{Asm.}{Asms.}
+\Crefname{subassumption}{Asm.}{Asms.}
+\Crefname{problem}{Problem}{Problems}
+\crefname{problem}{Problem}{Problems}
+
+
+\newcommand{\mf}[1]{\mbox{\cref{#1}}\xspace}
+\newcommand{\mfa}[1]{\mbox{\cref{#1}}}
+
+\usepackage{flushend}
+
+\let\labelindent\relax
+\usepackage[inline]{enumitem}
+\usepackage{mathtools}
+
+%% macros
+%% custom commands for editing
+\newcommand{\todo}[1]{{\color{red}TODO: #1}}
+\newcommand{\info}[1]{{\color{blue}INFO: #1}}
+
+\newcommand{\ompl}{\textsc{ompl}\xspace}
+\newcommand{\cspace}{\mbox{\ensuremath{\mathcal{Q}}}\xspace}
+\newcommand{\cspacespace}{\mbox{\ensuremath{\mathcal{Q}}}-space\xspace}
+\newcommand{\cgoal}{\mbox{\ensuremath{\mathcal{Q}_{\rm goal}}}\xspace}
+\newcommand{\cfree}{\mbox{\ensuremath{\mathcal{Q}_{\rm free}}}\xspace}
+\newcommand{\cstart}{\mbox{\ensuremath{q_{start}}}\xspace}
+\newcommand{\workspace}{\mbox{\ensuremath{\mathcal{W}}}\xspace}
+
+\newcommand{\se}{\ensuremath{\textsc{se}(\oldstylenums{3})}\xspace}
+\newcommand{\dof}{\textsc{d\scalebox{.8}{o}f}\xspace}
+\newcommand{\psprm}{\textsc{ps-prm}\xspace}
+\newcommand{\ik}{\textsc{ik}\xspace}
+\newcommand{\eg}{\emph{e.g.},\xspace}
+\newcommand{\ie}{\emph{i.e.},\xspace}
+
+% Calligraphic fonts
+\newcommand{\calA}{{\cal A}}
+\newcommand{\calB}{{\cal B}}
+\newcommand{\calC}{{\cal C}}
+\newcommand{\calD}{{\cal D}}
+\newcommand{\calE}{{\cal E}}
+\newcommand{\calF}{{\cal F}}
+\newcommand{\calG}{{\cal G}}
+\newcommand{\calH}{{\cal H}}
+\newcommand{\calI}{{\cal I}}
+\newcommand{\calJ}{{\cal J}}
+\newcommand{\calK}{{\cal K}}
+\newcommand{\calL}{{\cal L}}
+\newcommand{\calM}{{\cal M}}
+\newcommand{\calN}{{\cal N}}
+\newcommand{\calO}{{\cal O}}
+\newcommand{\calP}{{\cal P}}
+\newcommand{\calQ}{{\cal Q}}
+\newcommand{\calR}{{\cal R}}
+\newcommand{\calS}{{\cal S}}
+\newcommand{\calT}{{\cal T}}
+\newcommand{\calU}{{\cal U}}
+\newcommand{\calV}{{\cal V}}
+\newcommand{\calW}{{\cal W}}
+\newcommand{\calX}{{\cal X}}
+\newcommand{\calY}{{\cal Y}}
+\newcommand{\calZ}{{\cal Z}}
+
+% Fraktur fonts
+\newcommand{\frakA}{{\mathfrak{A}}}
+\newcommand{\frakB}{{\mathfrak{B}}}
+\newcommand{\frakC}{{\mathfrak{C}}}
+\newcommand{\frakD}{{\mathfrak{D}}}
+\newcommand{\frakE}{{\mathfrak{E}}}
+\newcommand{\frakF}{{\mathfrak{F}}}
+\newcommand{\frakG}{{\mathfrak{G}}}
+\newcommand{\frakH}{{\mathfrak{H}}}
+\newcommand{\frakI}{{\mathfrak{I}}}
+\newcommand{\frakJ}{{\mathfrak{J}}}
+\newcommand{\frakK}{{\mathfrak{K}}}
+\newcommand{\frakL}{{\mathfrak{L}}}
+\newcommand{\frakM}{{\mathfrak{M}}}
+\newcommand{\frakN}{{\mathfrak{N}}}
+\newcommand{\frakO}{{\mathfrak{O}}}
+\newcommand{\frakP}{{\mathfrak{P}}}
+\newcommand{\frakQ}{{\mathfrak{Q}}}
+\newcommand{\frakR}{{\mathfrak{R}}}
+\newcommand{\frakS}{{\mathfrak{S}}}
+\newcommand{\frakT}{{\mathfrak{T}}}
+\newcommand{\frakU}{{\mathfrak{U}}}
+\newcommand{\frakV}{{\mathfrak{V}}}
+\newcommand{\frakW}{{\mathfrak{W}}}
+\newcommand{\frakX}{{\mathfrak{X}}}
+\newcommand{\frakY}{{\mathfrak{Y}}}
+\newcommand{\frakZ}{{\mathfrak{Z}}}
+
+\newcommand{\fraka}{{\mathfrak{a}}}
+\newcommand{\frakb}{{\mathfrak{b}}}
+\newcommand{\frakc}{{\mathfrak{c}}}
+\newcommand{\frakd}{{\mathfrak{d}}}
+\newcommand{\frake}{{\mathfrak{e}}}
+\newcommand{\frakf}{{\mathfrak{f}}}
+\newcommand{\frakg}{{\mathfrak{g}}}
+\newcommand{\frakh}{{\mathfrak{h}}}
+\newcommand{\fraki}{{\mathfrak{i}}}
+\newcommand{\frakj}{{\mathfrak{j}}}
+\newcommand{\frakk}{{\mathfrak{k}}}
+\newcommand{\frakl}{{\mathfrak{l}}}
+\newcommand{\frakm}{{\mathfrak{m}}}
+\newcommand{\frakn}{{\mathfrak{n}}}
+\newcommand{\frako}{{\mathfrak{o}}}
+\newcommand{\frakp}{{\mathfrak{p}}}
+\newcommand{\frakq}{{\mathfrak{q}}}
+\newcommand{\frakr}{{\mathfrak{r}}}
+\newcommand{\fraks}{{\mathfrak{s}}}
+\newcommand{\frakt}{{\mathfrak{t}}}
+\newcommand{\fraku}{{\mathfrak{u}}}
+\newcommand{\frakv}{{\mathfrak{v}}}
+\newcommand{\frakw}{{\mathfrak{w}}}
+\newcommand{\frakx}{{\mathfrak{x}}}
+\newcommand{\fraky}{{\mathfrak{y}}}
+\newcommand{\frakz}{{\mathfrak{z}}}
+
+\newcommand{\bffraka}{{\boldsymbol{\mathfrak{a}}}}
+\newcommand{\bffrakb}{{\boldsymbol{\mathfrak{b}}}}
+\newcommand{\bffrakc}{{\boldsymbol{\mathfrak{c}}}}
+\newcommand{\bffrakd}{{\boldsymbol{\mathfrak{d}}}}
+\newcommand{\bffrake}{{\boldsymbol{\mathfrak{e}}}}
+\newcommand{\bffrakf}{{\boldsymbol{\mathfrak{f}}}}
+\newcommand{\bffrakg}{{\boldsymbol{\mathfrak{g}}}}
+\newcommand{\bffrakh}{{\boldsymbol{\mathfrak{h}}}}
+\newcommand{\bffraki}{{\boldsymbol{\mathfrak{i}}}}
+\newcommand{\bffrakj}{{\boldsymbol{\mathfrak{j}}}}
+\newcommand{\bffrakk}{{\boldsymbol{\mathfrak{k}}}}
+\newcommand{\bffrakl}{{\boldsymbol{\mathfrak{l}}}}
+\newcommand{\bffrakm}{{\boldsymbol{\mathfrak{m}}}}
+\newcommand{\bffrakn}{{\boldsymbol{\mathfrak{n}}}}
+\newcommand{\bffrako}{{\boldsymbol{\mathfrak{o}}}}
+\newcommand{\bffrakp}{{\boldsymbol{\mathfrak{p}}}}
+\newcommand{\bffrakq}{{\boldsymbol{\mathfrak{q}}}}
+\newcommand{\bffrakr}{{\boldsymbol{\mathfrak{r}}}}
+\newcommand{\bffraks}{{\boldsymbol{\mathfrak{s}}}}
+\newcommand{\bffrakt}{{\boldsymbol{\mathfrak{t}}}}
+\newcommand{\bffraku}{{\boldsymbol{\mathfrak{u}}}}
+\newcommand{\bffrakv}{{\boldsymbol{\mathfrak{v}}}}
+\newcommand{\bffrakw}{{\boldsymbol{\mathfrak{w}}}}
+\newcommand{\bffrakx}{{\boldsymbol{\mathfrak{x}}}}
+\newcommand{\bffraky}{{\boldsymbol{\mathfrak{y}}}}
+\newcommand{\bffrakz}{{\boldsymbol{\mathfrak{z}}}}
+
+% Sets:
+\newcommand{\setA}{\textsf{A}}
+\newcommand{\setB}{\textsf{B}}
+\newcommand{\setC}{\textsf{C}}
+\newcommand{\setD}{\textsf{D}}
+\newcommand{\setE}{\textsf{E}}
+\newcommand{\setF}{\textsf{F}}
+\newcommand{\setG}{\textsf{G}}
+\newcommand{\setH}{\textsf{H}}
+\newcommand{\setI}{\textsf{I}}
+\newcommand{\setJ}{\textsf{J}}
+\newcommand{\setK}{\textsf{K}}
+\newcommand{\setL}{\textsf{L}}
+\newcommand{\setM}{\textsf{M}}
+\newcommand{\setN}{\textsf{N}}
+\newcommand{\setO}{\textsf{O}}
+\newcommand{\setP}{\textsf{P}}
+\newcommand{\setQ}{\textsf{Q}}
+\newcommand{\setR}{\textsf{R}}
+\newcommand{\setS}{\textsf{S}}
+\newcommand{\setT}{\textsf{T}}
+\newcommand{\setU}{\textsf{U}}
+\newcommand{\setV}{\textsf{V}}
+\newcommand{\setW}{\textsf{W}}
+\newcommand{\setX}{\textsf{X}}
+\newcommand{\setY}{\textsf{Y}}
+\newcommand{\setZ}{\textsf{Z}}
+
+% Vectors
+\newcommand{\bfa}{\mathbf{a}}
+\newcommand{\bfb}{\mathbf{b}}
+\newcommand{\bfc}{\mathbf{c}}
+\newcommand{\bfd}{\mathbf{d}}
+\newcommand{\bfe}{\mathbf{e}}
+\newcommand{\bff}{\mathbf{f}}
+\newcommand{\bfg}{\mathbf{g}}
+\newcommand{\bfh}{\mathbf{h}}
+\newcommand{\bfi}{\mathbf{i}}
+\newcommand{\bfj}{\mathbf{j}}
+\newcommand{\bfk}{\mathbf{k}}
+\newcommand{\bfl}{\mathbf{l}}
+\newcommand{\bfm}{\mathbf{m}}
+\newcommand{\bfn}{\mathbf{n}}
+\newcommand{\bfo}{\mathbf{o}}
+\newcommand{\bfp}{\mathbf{p}}
+\newcommand{\bfq}{\mathbf{q}}
+\newcommand{\bfr}{\mathbf{r}}
+\newcommand{\bfs}{\mathbf{s}}
+\newcommand{\bft}{\mathbf{t}}
+\newcommand{\bfu}{\mathbf{u}}
+\newcommand{\bfv}{\mathbf{v}}
+\newcommand{\bfw}{\mathbf{w}}
+\newcommand{\bfx}{\mathbf{x}}
+\newcommand{\bfy}{\mathbf{y}}
+\newcommand{\bfz}{\mathbf{z}}
+
+
+\newcommand{\bfalpha}{\boldsymbol{\alpha}}
+\newcommand{\bfbeta}{\boldsymbol{\beta}}
+\newcommand{\bfgamma}{\boldsymbol{\gamma}}
+\newcommand{\bfdelta}{\boldsymbol{\delta}}
+\newcommand{\bfepsilon}{\boldsymbol{\epsilon}}
+\newcommand{\bfzeta}{\boldsymbol{\zeta}}
+\newcommand{\bfeta}{\boldsymbol{\eta}}
+\newcommand{\bftheta}{\boldsymbol{\theta}}
+\newcommand{\bfiota}{\boldsymbol{\iota}}
+\newcommand{\bfkappa}{\boldsymbol{\kappa}}
+\newcommand{\bflambda}{\boldsymbol{\lambda}}
+\newcommand{\bfmu}{\boldsymbol{\mu}}
+\newcommand{\bfnu}{\boldsymbol{\nu}}
+\newcommand{\bfomicron}{\boldsymbol{\omicron}}
+\newcommand{\bfpi}{\boldsymbol{\pi}}
+\newcommand{\bfrho}{\boldsymbol{\rho}}
+\newcommand{\bfsigma}{\boldsymbol{\sigma}}
+\newcommand{\bftau}{\boldsymbol{\tau}}
+\newcommand{\bfupsilon}{\boldsymbol{\upsilon}}
+\newcommand{\bfphi}{\boldsymbol{\phi}}
+\newcommand{\bfchi}{\boldsymbol{\chi}}
+\newcommand{\bfpsi}{\boldsymbol{\psi}}
+\newcommand{\bfomega}{\boldsymbol{\omega}}
+\newcommand{\bfxi}{\boldsymbol{\xi}}
+\newcommand{\bfell}{\boldsymbol{\ell}}
+
+% Matrices
+\newcommand{\bfA}{\mathbf{A}}
+\newcommand{\bfB}{\mathbf{B}}
+\newcommand{\bfC}{\mathbf{C}}
+\newcommand{\bfD}{\mathbf{D}}
+\newcommand{\bfE}{\mathbf{E}}
+\newcommand{\bfF}{\mathbf{F}}
+\newcommand{\bfG}{\mathbf{G}}
+\newcommand{\bfH}{\mathbf{H}}
+\newcommand{\bfI}{\mathbf{I}}
+\newcommand{\bfJ}{\mathbf{J}}
+\newcommand{\bfK}{\mathbf{K}}
+\newcommand{\bfL}{\mathbf{L}}
+\newcommand{\bfM}{\mathbf{M}}
+\newcommand{\bfN}{\mathbf{N}}
+\newcommand{\bfO}{\mathbf{O}}
+\newcommand{\bfP}{\mathbf{P}}
+\newcommand{\bfQ}{\mathbf{Q}}
+\newcommand{\bfR}{\mathbf{R}}
+\newcommand{\bfS}{\mathbf{S}}
+\newcommand{\bfT}{\mathbf{T}}
+\newcommand{\bfU}{\mathbf{U}}
+\newcommand{\bfV}{\mathbf{V}}
+\newcommand{\bfW}{\mathbf{W}}
+\newcommand{\bfX}{\mathbf{X}}
+\newcommand{\bfY}{\mathbf{Y}}
+\newcommand{\bfZ}{\mathbf{Z}}
+
+
+\newcommand{\bfGamma}{\boldsymbol{\Gamma}}
+\newcommand{\bfDelta}{\boldsymbol{\Delta}}
+\newcommand{\bfTheta}{\boldsymbol{\Theta}}
+\newcommand{\bfLambda}{\boldsymbol{\Lambda}}
+\newcommand{\bfPi}{\boldsymbol{\Pi}}
+\newcommand{\bfSigma}{\boldsymbol{\Sigma}}
+\newcommand{\bfUpsilon}{\boldsymbol{\Upsilon}}
+\newcommand{\bfPhi}{\boldsymbol{\Phi}}
+\newcommand{\bfPsi}{\boldsymbol{\Psi}}
+\newcommand{\bfOmega}{\boldsymbol{\Omega}}
+
+
+% Blackboard Bold:
+\newcommand{\bbA}{\mathbb{A}}
+\newcommand{\bbB}{\mathbb{B}}
+\newcommand{\bbC}{\mathbb{C}}
+\newcommand{\bbD}{\mathbb{D}}
+\newcommand{\bbE}{\mathbb{E}}
+\newcommand{\bbF}{\mathbb{F}}
+\newcommand{\bbG}{\mathbb{G}}
+\newcommand{\bbH}{\mathbb{H}}
+\newcommand{\bbI}{\mathbb{I}}
+\newcommand{\bbJ}{\mathbb{J}}
+\newcommand{\bbK}{\mathbb{K}}
+\newcommand{\bbL}{\mathbb{L}}
+\newcommand{\bbM}{\mathbb{M}}
+\newcommand{\bbN}{\mathbb{N}}
+\newcommand{\bbO}{\mathbb{O}}
+\newcommand{\bbP}{\mathbb{P}}
+\newcommand{\bbQ}{\mathbb{Q}}
+\newcommand{\bbR}{\mathbb{R}}
+\newcommand{\bbS}{\mathbb{S}}
+\newcommand{\bbT}{\mathbb{T}}
+\newcommand{\bbU}{\mathbb{U}}
+\newcommand{\bbV}{\mathbb{V}}
+\newcommand{\bbW}{\mathbb{W}}
+\newcommand{\bbX}{\mathbb{X}}
+\newcommand{\bbY}{\mathbb{Y}}
+\newcommand{\bbZ}{\mathbb{Z}}
+
+%
+% \newcommand{\scFK}{\textsc{FK}}
+% \newcommand{\scCC}{\textsc{CC}}
+% \newcommand{\scNN}{\textsc{NN}}
+% \newcommand{\scSIMD}{\textsc{SIMD}}
+
+\newcommand{\ourplanner}{\textsc{GANC-PRM}\xspace}
+
+\graphicspath{ {./images/} }
+\pdfminorversion=4

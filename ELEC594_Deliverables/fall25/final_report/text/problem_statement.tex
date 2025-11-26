@@ -1,0 +1,23 @@
+\section{Problem Statement}
+\label{sec:problem_statement}
+We model a robot by its configuration $\bfq \in \calC = \cfree \cup \cspace_{\rm occupied} \subseteq \mathbb{R}^k$,  
+where $k$ is the number of controllable degrees of freedom including both the base and joints. The set $\cfree$ denotes the collision-free subset of the configuration space, while $\cspace_{\rm occupied}$ corresponds to states in collision. The robot operates in a physical workspace $\workspace \subseteq \mathbb{R}^3$, and motion planning is the problem of computing feasible trajectories in this high-dimensional space.  
+
+The classical objective is to compute a continuous path $\pi : [0,1] \rightarrow \cfree$ that connects a start configuration $\pi(0) = \cstart$ to a goal region $\pi(1) \in \cgoal$.  
+In context-aware motion planning, simply avoiding collisions is insufficient; robots are also required to follow additional task-oriented requirements. Such requirements demand that the planner possesses a high-level understanding of its planning environment, which greatly increases the complexity of planning.  
+
+To capture this, we assign to each path $\pi \in \Pi$ a composite cost functional  
+\begin{equation}
+c(\pi) = c_m(\pi) + \sum_{j \in J} \alpha_j \, c_j(\pi),
+\label{eq:general_cost}
+\end{equation}
+where $c_m(\pi)$ is the \emph{motion cost}, typically the path length in configuration space,
+\begin{equation}
+c_m(\pi) = \int_0^1 \lVert \dot{\pi}(t) \rVert \, \mathrm{d}t,
+\label{eq:motion_cost}
+\end{equation}
+and $J$ indexes the set of auxiliary task costs. Each term $c_j(\pi)$ quantifies a task-specific requirement, while $\alpha_j \in \mathbb{R}$ is its relative weight. These auxiliary terms, $\alpha_j \, c_j(\pi)$ where $ j\in J$, can depend on robot state, environmental geometry, or external task variables, and are often nonlinear, high-dimensional, and computationally expensive. This poses a significant challenge: evaluating $c_j(\pi)$ may involve repeated calls to expensive models (e.g., neural networks or simulators) that would compound across all states in the PRM.  
+
+In this work, we address these challenges by introducing a GPU-parallelized pipeline that enables efficient PRM-based planning under such cost-augmented formulations.  
+
+

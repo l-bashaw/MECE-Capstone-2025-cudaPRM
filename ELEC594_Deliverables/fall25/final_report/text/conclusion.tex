@@ -1,0 +1,8 @@
+\section{Discussion}
+\label{sec:conclusion}
+
+Our experiments show that~\ourplanner~is capable of planning in highly dynamic environments while maintaining contextual-awareness. Table~\ref{tab:planning-results} shows that we achieve an overall speedup factor of more than 130x for a roadmap with 1100 nodes, compared to an equivalent CPU-based PRM. Importantly, this is achieved without sacrificing detection rates or path quality.~\ourplanner~also offers scalable performance: it can replan at up to 75~Hz for a PRM with 500 nodes, or up to 3~Hz for a PRM with 15,000 nodes. Although we use perception-aware planning as a representative example, our method is general in nature and could perform well for other context-aware planning tasks.
+
+Future work will experiment with other neural cost functions beyond those presented in this paper. For example, a privacy-aware function could allow the planner to reliably avoid the privacy-violations and unethical scenarios described in~\cite{shome2023robots}. Alongside experiments with other neural cost functions, we plan to experiment with the use of multiple cost functions and the dynamic weight-adjustment scheme described in~\ref{sec:ncf}. We would also like to inject more parallelism into the various stages of roadmap construction and shift to an approximate-NN search to decrease planning times. Faster planning times will enable the use of denser roadmaps and more complex neural cost functions that could capture richer environmental features.
+
+% Testing this planner on a camera-equipped surgical manipulator could enable the generation of paths that satisfy decoupled EE and perception constraints.

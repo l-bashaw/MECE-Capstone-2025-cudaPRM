@@ -1,0 +1,204 @@
+\section{\ourplanner Algorithm}\label{sec:method_baseline}
+
+In this section, we detail the architecture and implementation of \ourplanner. We make two major modifications to the standard implementation of PRM. First, in Sec.~\ref{sec:construction}, we parallelize roadmap construction on GPU to generate motion plans in milliseconds. Second, in section~\ref{sec:ncf}, we use a neural cost function to assign context-specific costs to each node. These costs are used during the PRM query phase to generate paths that are context-aware. A high-level view of this process is illustrated in Fig.~\ref{fig:prm_flowchart}, which includes the transfer of the PRM from GPU to CPU. On CPU, we use an implementation of a graph search algorithm, such as $\mathcal{A}$*~\cite{hart1968formal} or Dijkstra's~\cite{dijkstra2022note}, to get a solution from the roadmap.
+
+
+% Second, we perform batched forward kinematics on GPU to compute the camera joint positions that steer the camera towards the object of interest for each node in the roadmap, and update the nodes accordingly. 
+
+\begin{algorithm}[!ht]
+\caption{Parallel Roadmap Construction}
+\label{alg:roadmap}
+\begin{algorithmic}[1]
+\Procedure{PRM-Construction}{$N, T_{\rm term}, T_{\rm sample}, K$}
+\State { /* $N$ denotes the number of threads. */}
+\State { /* $T_{\rm term}$ denotes the terminate condition. */}
+\State { /* $T_{\rm sample}$ denotes the max attempts to sample a configuration. */}
+\State { /* $K$ denotes the number of neighbors for k-NN. */}
+% \State {Initialize an empty graph $G = (V, E)$}
+\State {$V, E\leftarrow \emptyset$} 
+\While{not $T_{\rm term}$}
+    \State { /* Step 1: Sample new vertices in parallel */}
+        % \State{$C_{\rm rand} \leftarrow \emptyset$} \Comment{Shape: $N\times {\rm dof}$}
+    \State{$C_{\rm rand} \leftarrow \Call{sample-parallel}{N, T_{\rm sample}}$\label{line:sample-parallel}}
+    \State{$V\leftarrow V\cup\{c_{\rm rand}\}$}
+    \State{}
+    \State { /* Step 2: Compute NN in parallel */}
+    \State{$C_{\rm near} \leftarrow \Call{KNN-search}{C_{\rm rand}, V, N, K}$\label{line:knn}}
+    \State{}
+    \State { /* Step 3: Connect edges in parallel*/}
+    \State{$E_{\rm new} \leftarrow \Call{connect-edges}{C_{\rm rand}, C_{\rm near}, N}$\label{line:connect}}
+    \State{$E\leftarrow E\cup E_{\rm new}$}
+    \EndWhile
+\EndProcedure
+\end{algorithmic}
+\end{algorithm}
+
+
+\subsection{Parallelized Roadmap Construction}\label{sec:construction}
+To facilitate discussion, we first give a brief introduction to the parallelized PRM architecture; each stage of roadmap construction is naturally parallelizable on GPUs. We develop custom CUDA kernels to accelerate sampling, neighbor search, and collision checking processes with SIMT parallelism and expose these kernels to the rest of our implementation via Python bindings. We provide pseudocode in Algorithm~\ref{alg:roadmap}.
+
+For a roadmap with $N$ nodes, we launch a state generation kernel (see line~\ref{line:sample-parallel}) with $N$ threads. Each thread is responsible for sampling a new configuration $c_{\rm rand}$. Since $c_{\rm rand}$ may be invalid, we set a maximum number of attempts $T_{\rm term}$ and maintain a counter $t_{\rm atp}$ to track retries. If no valid configuration is found within the limit, $c_{\rm rand}$ is flagged as invalid and is omitted from the roadmap. K-nearest-neighbor (k-NN) computation, line~\ref{line:knn}, follows a similar strategy: the k-NN kernel is launched with $N$ threads and each thread is responsible for finding the $K$ nearest neighbors of one configuration in the PRM. We fix $K$ rather than a search radius $R$ in an effort to prevent thread divergence and improve connectivity in situations where a configuration may have few neighbors within $R$. 
+
+We use separate kernels for edge interpolation and collision checking; line~\ref{line:connect} represents these complementary kernels as one unit. We employ a lazy strategy in which the edges between a node and each of its $K$ neighbors are locally connected and assumed to be valid. Then, the collision checker removes any invalid edges; it also transforms meshes into geometric primitives to perform validity checks. The edge-connection kernel is launched with $N \times K$ threads, where each thread connects one node to one of its $K$ neighbors. The collision checking kernel is similarly launched with $N \times K$ threads; each thread checks for collision between one edge and every obstacle in the environment.
+
+\begin{figure}[!ht]
+    \centering
+    \includegraphics[width=1.0\columnwidth]{image/prm_flowchart.pdf}
+    \caption{
+    This figure illustrates the pipeline of our planner. Each kernel (shown in the green dotted boxes) corresponds to a component of PRM construction: sampling, $k$-nearest neighbor search, edge connection, and scoring. The data is then transferred to the CPU, where our planner uses graph search to compute a path that balances motion cost with neural cost.
+    }
+    \label{fig:prm_flowchart}
+\end{figure}
+
+\subsection{Neural Cost Function}\label{sec:ncf}
+
+We assign a cost to each configuration based on a pretrained neural network, $\mathcal{N}$, immediately after PRM construction. The network takes a robot configuration $\bfq$ and a latent variable $z$ as input and outputs a cost $c \in [0,1]$, where lower values indicate more preferred configurations. This latent variable $z$ can capture any other contextually-relevant information about the environment; for example, in human-aware planning $z$ would represent the pose of a human collaborator. The objective of a neural network can be flexible (e.g., safety, privacy, human intention, etc.). What makes this approach more powerful is that, for a given configuration $\bfq$, the final cost $c(\bfq,z)$ can be expressed as the sum of multiple networks.
+
+\begin{equation}
+    c(\bfq,z) = \sum_{j\in J}\gamma_j\mathcal{N}_j(\bfq, z)
+\end{equation}
+
+As most graph search methods operate on edge costs rather than node costs, we define a general transformation $\mathcal{T}$ that maps the costs of the two endpoint configuration of an edge, together with any intermediate configurations or latent variables, into an edge cost: 
+\begin{equation}
+    C_{\text{neural}}(e) \;=\; \mathcal{T}\Big(c(\bfq_i, z_i),\, c(\bfq_j, z_j),\, \{c(\bfq_k, z_k)\}_{k \in \mathcal{I}(e)}\Big),
+\end{equation}
+where $e=(\bfq_i,\bfq_j)$ denotes an edge in the roadmap, $c(\bfq,z)$ is the node cost as defined in~(1), and $\mathcal{I}(e)$ is an optional set of intermediate configurations sampled along $e$. The function $\mathcal{T}$ can be chosen flexibly (e.g., average, maximum, or learned aggregation), enabling the integration of node-level neural costs into edge-level graph search.
+
+
+This new cost for each edge $C_{\text{neural}}(e)$ is combined with the roadmap graph, allowing for graph search algorithms to optimize for it and any other relevant weight (e.g. motion cost). To incorporate this into planning without restricting to a linear blend, we define the final edge cost as an aggregation of the original motion cost and the neural cost:
+\begin{equation}
+    C_{\mathrm{total}}(e; z)
+    \;=\;
+    \Phi\!\big(C_{\mathrm{motion}}(e),\, C_{\mathrm{neural}}(e; z);\, \eta\big),
+\end{equation}
+where $\Phi:\mathbb{R}_{\ge 0}^2\times\Xi\!\to\!\mathbb{R}_{\ge 0}$ is any monotone aggregator (e.g., sum, max, $p$-norm, log-sum-exp, product, lexicographic smoothing, or a learned MLP), and $\eta$ collects its hyperparameters. This combined cost allows graph search algorithms to optimize simultaneously for motion efficiency and neural costs such as safety, visibility, or human-awareness. This method is therefore a general framework to incorporate different context-specific constraints. Furthermore, our ability to replan in real-time theoretically allows each cost weight, $\gamma_j$, to be updated dynamically. Dynamic weight updates would allow the properties of our motion plans to be changed on the fly. For example, if a robot is executing tasks in an empty room when a human enters, the planner could receive a signal from sensors to increase the weight $\gamma_j$ on the privacy cost $c_j$ from Eq.~\ref{eq:general_cost}. This would put the robot in ``privacy-aware'' planning mode and modify all of the robots behavior until the human was no longer present, at which point $\gamma_j$ would return to its unmodified value.
+
+
+
+% --------- OLD DESCRIPTION OF CUDA -----------
+% The sampling and collision-checking steps are naturally parallelizable on GPUs. We develop custom CUDA kernels to accelerate the roadmap construction process. The entire construction is executed on the GPU, with the results exposed to the rest of our PRM-NC implementation through Python bindings.
+
+% Specifically, we use SIMT (Single Instruction, Multiple Threads) parallelism to run $N$ threads in parallel. Each kernel is launched with a single thread responsible for sampling a new configuration $c_{\rm rand}$. Since a sampled configuration may be in collision with obstacles, we set a maximum number of attempts $T_{\rm term}$ and maintain a counter $t_{\rm atp}$ to track retries. Valid samples from all threads are stored in a pre-allocated memory buffer $C_{\rm rand}$. If no valid configuration is found within the limit, the corresponding entry is flagged as invalid. After sampling, the new configurations in $C_{\rm rand}$ are added to the PRM as vertices.
+
+% the Our parallel neighbor search is a standard brute-force implementation of k-nearest neighbors; it uses the \( \ell_2 \) distance computed in the subset of $\cspace$ that does not include the robot’s camera joints\Weihang{Mention later?} \Emiliano{not necessarily only camera joints, but the subset of joints to use in constraint projection}.  Our parallel roadmap construction could be made more elegant; however, we leave this for a future work since our goal with this parallelization is simply to enable real-time planning frequencies.
+
+% The algorithm maintains a graph $G = (V, E)$. To expand $G$, it first samples a random configuration $c_{\rm rand}$ in the configuration space, which becomes a candidate vertex to add to the graph. Next, a $k$-nearest neighbor search is performed to find the set of nearest neighbors of $c_{\rm rand}$, denoted by $C_{\rm near}$. The algorithm then attempts to connect $c_{\rm rand}$ to each element in $C_{\rm near}$ through collision checking. If a collision-free path exists between two vertices, the corresponding edge is added to $G$.
+
+% --------- OLD SPLIT PSEUDOCODE ---------
+% \subsection{Parallel Roadmap Construction}\label{sec:construction}
+% \begin{algorithm}\label{alg:sample}
+%     \caption{Sampling}
+%     \begin{algorithmic}[1]
+%         \Procedure{sample-parallel}{$N, T_{\rm sample}$}
+%         \State { /* $N$ denotes the number of threads. */}
+%         \State { /* $T_{\rm term}$ denotes the terminate condition. */}
+%         \State{$C_{\rm rand} \leftarrow \emptyset$}
+%         \For{$n=0\rightarrow (N-1)$} \Comment{In parallel}
+%             \State{$k_{\rm atp} \leftarrow 0$}
+%             \While{$t_{\rm atp} < T_{\rm sample}$}  
+%                 \State{$c_{\rm rand}\leftarrow \Call{sample-config}{\null}$}
+%                 \If{\Call{is-valid}{$c_{\rm rand}$}}
+%                     \State{$C_{\rm rand}[n] \leftarrow c_{\rm rand}$}
+%                     \State{\texttt{break}}
+%                 \Else
+%                     \State{$t_{\rm atp} \leftarrow t_{\rm atp} + 1$}
+%                 \EndIf
+%             \EndWhile
+%         \EndFor
+%         \State{\Call{sync}{\null}}
+%         \State{\Return $C_{\rm rand}$}
+%         \EndProcedure
+%     \end{algorithmic}
+% \end{algorithm}
+
+% \begin{algorithm}\label{alg:knn}
+%     \caption{KNN}
+%     \begin{algorithmic}[1]
+%         \Procedure{KNN-parallel}{$C_{\rm rand}, V, N, K$}
+%         \State { /* $C_{\rm rand}$ denotes the new vertices. */}
+%         \State { /* $V$ denotes the vertices in the PRM. */}
+%         \State { /* $N$ denotes the number of threads. */}
+%         \State { /* $K$ denotes the number of neighbors for k-NN. */}
+%         \State{$C_{\rm near} \leftarrow \emptyset$} \Comment{Shape: $K\times N\times {\rm dof}$}
+%         \For{$n=0\rightarrow (N-1)$} \Comment{In parallel}
+%             \State{$C_{near}[n]\leftarrow\Call{KNN}{V, C_{rand}[n], K}$}
+%         \EndFor
+%         \State{\Call{sync}{\null}}
+%         \State{\Return $C_{\rm near}$}
+%         \EndProcedure
+%     \end{algorithmic}
+% \end{algorithm}
+
+% \begin{algorithm}\label{alg:knn}
+%     \caption{Connect edges in parallel}
+%     \begin{algorithmic}[1]
+%         \Procedure{connect-edges}{$C_{\rm rand}, C_{\rm near}, N$}
+%         \State { /* $C_{\rm rand}$ denotes the new vertices. */}
+%         \State { /* $C_{\rm near}$ denotes the k nearest vertices of $C_{\rm rand}$. */}
+%         \State { /* $N$ denotes the number of threads. */}
+
+%         \State{$E_{\rm new}\leftarrow \emptyset$}
+%         \For{$n=0\rightarrow (N-1)$} \Comment{In parallel}
+%         \State{$c_1 \leftarrow C_{rand}[n]$}
+%         \For{$m=0\rightarrow (K-1)$}
+%             \State{$c_2 \leftarrow C_{near}[n][m]$}
+%             \If{\Call{is-valid-path($c_1, c_2$)} }
+%                 \State{$E_{\rm new}\leftarrow E_{\rm new}\cup \{(c_1, c_2)\}$}
+%             \EndIf
+%         \EndFor
+%     \EndFor
+%     \State{\Return $E_{\rm new}$}
+%         \EndProcedure
+%     \end{algorithmic}
+% \end{algorithm}
+
+% --------- OLD MONOLITHIC PSEUDOCODE ---------
+% \begin{itemize}
+% \item  We use a lightweight multi-layer perceptron (MLP) as our neural representation of the abstract cost functions.
+% \item We distill knowledge from a large perception model (e.g. YOLO-?) into our MLP. The MLP is trained on the perception scores provided by the larger model.
+% \item The MLP takes the difference in pose between the robot's camera and the object to-be-observed as input. This difference in pose is represented as delta(x,y,z,qx,qy,qz,qw). The model outputs a perception score between 0 and 1.
+% \end{itemize}
+
+
+% \SetKw{KwFunc}{Functions:}
+% \KwData{$N$ (number of nodes), $DIM$ (node dimension), $K$ (neighbors), $INTERP$ (interpolation steps), $RS$ (max resampling attempts)}
+% \KwFunc{$\Phi$ (node constrainer), $\Psi$ (node scorer)}\nonumber
+% \BlankLine
+% % Declare arrays
+% Nodes[$N$, $DIM$], Neighbors[$N$, $K$], Edges[$N$, $K$, $DIM$, $INTERP\_STEPS$], Validity[$N$, $K$], Scores[$N$] $\to$ GPU\
+% \BlankLine
+% \textbf{Launch SAMPLER with $N$ threads:}
+% \For{$i \gets 1$ \textbf{to} $N$ \textbf{in parallel}}{
+%     Node $\gets$ RANDOM\_CONFIG()\;
+%     \While{State invalid \textbf{and} $attempts$ $<$ $RS$}{
+%         Node $\gets$ RANDOM\_CONFIG()\;
+%     }
+%     Nodes[$i$] $\gets$ Node\;
+% }
+% \BlankLine
+% \BlankLine
+% \textbf{Launch kNN, $N$ threads:}
+% \For{$i \gets 1$ \textbf{to} $N$ \textbf{in parallel}}{
+%     Neighbors[$i$] $\gets$ NEAREST\_NEIGHBOR(States[$i$], $K$)\;
+% }
+% \BlankLine
+% \BlankLine
+% \textbf{Launch EDGE CONSTRUCTION, $kN$ threads:}
+% \For{$i \gets 1$ \textbf{to} $N$, $j \gets 1$ \textbf{to} $K$ \textbf{in parallel}}{
+%     Edge $\gets$ CONNECT(Nodes[$i$], Neighbors[$i,j$])\;
+%     Edges[$i,j$] $\gets$ Edge\;
+% }
+% \BlankLine
+% \BlankLine
+% \textbf{Launch IS VALID, $kN$ threads:}
+% \For{$i \gets 1$ \textbf{to} $N$, $j \gets 1$ \textbf{to} $K$ \textbf{in parallel}}{
+%     Validity[$i,j$] $\gets$ isValid(Edges[$i,j$])\;
+% }
+% \BlankLine
+% \BlankLine
+
+% Nodes $\gets \Phi(\text{Nodes})$ \\
+% Scores $\gets \Psi(\text{Nodes})$ \\
+% (States, Neighbors, Edges, Validity, Scores) $\to$ CPU\\\
+% PRM $\gets$ ASSEMBLE(States, Neighbors, Edges, Validity, Scores)\\\
+% \Return PATH($q_{\text{start}}$, $q_{\text{goal}}$, PRM)

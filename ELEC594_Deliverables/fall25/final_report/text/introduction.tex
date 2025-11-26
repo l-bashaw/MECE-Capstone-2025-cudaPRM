@@ -1,0 +1,62 @@
+\section{Introduction}
+\label{sec:introduction}
+
+Motion planning algorithms~\cite{kavraki2002probabilistic, kuffner2000rrt} are a crucial component of autonomous robotic systems, as they compute collision-free paths in a robot’s configuration space and thereby enable safe navigation in unfamiliar environments~\cite{latombe2012robot}. For robots operating in dynamic settings, such planners must generate motion plans multiple times per second to react to sudden environmental changes. Among many approaches, sampling-based motion planning (SBMP)~\cite{tamizi2023review, zhou2022review} has emerged as a successful category of planning algorithms, particularly well-suited for solving high-dimensional problems where exact methods become intractable. Within this category, the probabilistic roadmap (PRM)~\cite{kavraki2002probabilistic} is a widely used method that constructs a graph of sampled configurations and then searches this graph to identify paths between a given start and goal.
+
+
+\begin{figure}[!t]
+    \includegraphics[width=1.0\columnwidth]{image/rr_thrown_cropped.pdf}
+    \caption{
+    \ourplanner allows the robot to replan at up to \textbf{75~Hz} while it monitors and pursues an object (the red oval) during a game of ``keep-away" with two humans. As the humans throw the object back and forth, the robot tracks and pursues it. The robot's path and the camera's optical axis are shown in green and blue, respectively. The object's trajectory is shown in orange.
+    }
+    \label{fig:real_robot_thrown}
+\end{figure}
+
+
+Classical PRM focuses on collision avoidance and path properties such as obstacle clearance and smoothness, yet many real-world applications require that planners also reason about the broader context and task in which they are deployed. For example, in human–robot interaction (HRI) and human–robot collaboration (HRC), a robot must generate smooth, collision-free paths while also accounting for factors such as human intentions, safety, and privacy~\cite{mainprice2011planning, rajendran2021human}. Incorporating such context-aware objectives into PRM is difficult because the corresponding cost functions are often computationally expensive to evaluate during roadmap construction. Many of these objectives can be expressed as neural cost functions~\cite{zhao2022perception, chen2025int2planner, you2025human}, which learn task-relevant representations of the environment and are naturally optimized for GPU execution. Therefore, integrating neural costs into conventional CPU-based PRM implementations introduces substantial CPU–GPU communication overhead. Prior work has introduced hardware-accelerated variants of PRM that achieve real-time performance~\cite{blankenburg2020towards,pan2010g,pan2010efficient,pan2012gpu,amato1999probabilistic}, yet none integrate neural costs within a GPU-native planner.
+
+
+% A common method of enabling real-time motion planning is the use of various hardware-acceleration strategies ~\cite{thomason2024motions, ramsey2024collision, wilson2025nearest, sundaralingam2023curobo, lee2024gpu, park2013real, pan2012gpu, atay2006motion, murray2016microarchitecture, huang2022hardware}, such as single-instruction multiple-thread~(SIMT)~\cite{sundaralingam2023curobo, lee2024gpu, park2013real, pan2012gpu} or single-instruction multiple-data~(SIMD)~\cite{thomason2024motions, ramsey2024collision, wilson2025nearest} parallelism.   Single-threaded, CPU-based implementations of PRM are slow; however, there exist several hardware-accelerated versions of PRM that achieve real-time performance~\cite{blankenburg2020towards,pan2010g,pan2010efficient,pan2012gpu,amato1999probabilistic}.
+
+
+% Beyond the real-time planning requirement, algorithms deployed on autonomous robots often require awareness of the specific task they are meant to execute. These tasks may cover human-robot interaction (HRI)~\cite{mainprice2011planning, rajendran2021human}, visibility and perception of objects in the environment ~\cite{falanga2018pampc, tordesillas2023deep, meng2025look} or safety during movement. A popular method of transferring this context awareness to planning is the use of neural cost functions~\cite{saha2024edmp, huang2023differentiable, yang2021real}, which learn features from data rather than requiring a manually defined function.
+
+% should ideally accommodate planning under various constrained settings such as frozen joints, perception objectives, privacy centric settings, or collaboration with humans.  A popular method of capturing these constraints is the use of neural cost functions~\cite{saha2024edmp, huang2023differentiable, yang2021real}, which learn rich features from data rather than requiring a human to manually define a cost function.  
+% One disadvantage of the fully learning-based planning approach is that it requires extensive training (which itself requires large amounts of data and compute resources), is not highly generalizable beyond the scope of its training data, and does not offer the same probabilistic completeness guarantees as SBMPs~\cite{noroozi2023conventional}. 
+% Moreover, many constrained planning algorithms are tailored to their specific applications and do not provide a framework designed to adapt to a combination of hand-crafted and neural cost functions ~\cite{liu2023task, sisbot2012human, xi2024lightweight, papachristos2019localization,bartolomei2020perception,sundaralingam2023curobo,hu2025cprrtc}.
+
+
+To address this gap, we propose \ourplanner, a \textbf{G}PU-\textbf{A}ccelerated PRM with \textbf{N}eural \textbf{C}osts, which integrates neural cost functions to generate solutions tailored to specific planning contexts. \ourplanner builds on PRM’s inherent parallelism and its ability to globally sample the configuration space, enabling the planner to optimize paths with respect to neural costs and traditional PRM costs. We focus on PRMs rather than tree-based SBMPs (e.g.,~\cite{lavalle1998rapidly}) because PRMs construct global representations of the configuration space rather than committing to the first feasible solution. This perspective aligns naturally with neural costs, which also capture global structure of the configuration space. In \ourplanner, neural costs assign context-aware scores to each node in the roadmap, and these scores are subsequently incorporated into graph search to bias solutions toward context-aware objectives.
+
+
+We demonstrate the effectiveness of \ourplanner in a representative context-aware setting, namely perception-aware motion planning. In this case, \ourplanner achieves real-time planning frequencies of up to 75~Hz while simultaneously satisfying perception-aware constraints encoded by a neural cost function. We evaluate our planner on Stretch 2 from Hello Robot~\cite{kemp2022design} in both simulated and real environments and compare its performance to a baseline CPU implementation from~\cite{meng2025look}. Our results demonstrate that~\ourplanner framework can be deployed on real robots to enable context-aware real-time motion planning.
+
+% producing paths that are jointly optimized for both traditional motion costs and context-aware objectives.
+
+\begin{figure*}[!ht]
+    \centering
+    \includegraphics[width=0.8\textwidth]{image/high_res_human_chair.pdf}
+    \caption{
+    In this figure, the robot must traverse the room while continuously maintaining a frontal view of the human. Initially, as the human faces right, the robot plans a path along the right side (red arrow). When the human turns to face left, the robot replans and switches to a left-side path (blue arrow). Finally, when the human moves the white chair, the robot replans once more in real time to avoid the new obstacle (green arrow).
+    }
+    \label{fig:real_robot_dynamic}
+\end{figure*}
+
+% In this work, we make three key contributions:
+% \begin{itemize}
+% \item  We propose a GPU-accelerated implementation of PRM that achieves parallelism across the entire algorithm while incorporating neural cost functions.
+% \item Through extensive simulated and real-robot experiments, we demonstrate that our planner outperforms the best baseline method.
+% \end{itemize}
+
+
+% \begin{itemize}
+
+% \item  Need motion plans that optimize paths for user-defined cost functions. Why? We want to model and optimize solutions for the abstract qualities of a path, such as the visibility of the faces of actors in the environment.
+
+% \item Need the planning pipeline to run in real time so that motion plans can be regenerated on the fly as actors engage with the environment.
+
+% \item Real-time requirement necessitates GPU-based PRM for full integration with the neural network representations of the cost functions. Minimize costly CPU-GPU transfers and exploit PRM's massive parallelism.
+
+
+
+% \end{itemize}

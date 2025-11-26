@@ -1,0 +1,51 @@
+\documentclass[letterpaper, 10pt, conference]{ieeeconf}
+\IEEEoverridecommandlockouts
+\overrideIEEEmargins
+
+\input{preamble}
+
+\title{\fontsize{17pt}{24pt}\selectfont \bf
+GANC-PRM: GPU-Accelerated PRM with Neural Costs
+}
+\author{Anonymous Author(s)}
+% \author{Leo Bashaw $^{1,*}$, Qingxi Meng $^{2,*}$, Emiliano Flores $^{2}$, Weihang Guo $^{2}$, and Lydia E. Kavraki$^{2,3}$% <-this % stops a space
+% \thanks{
+% $^{1}$ Department of Electrical and Computer Engineering, Rice University\newline
+% $^{2}$ Department of Computer Science, Rice University\newline 
+% $^{3}$  Ken Kennedy Institute, Rice University\newline
+% {\tt \{lb73, qm15, ef55, wg25, kavraki\}@rice.edu}\newline
+% $^{*}$ Equal contribution.\newline 
+% }%   
+% }
+
+\newcommand{\Weihang}[1]{{\color{blue}[Weihang: #1]}}
+\newcommand{\Emiliano}[1]{{\color{purple}[Emiliano: #1]}}
+\newcommand{\Qingxi}[1]{{\color{red}[Qingxi: #1]}}
+
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+\pagestyle{empty}
+
+\begin{abstract}
+The sampling-based motion planning algorithm Probabilistic Roadmap (PRM) is widely used to efficiently solve high-dimensional planning problems. Classical PRM focuses on collision avoidance, obstacle clearance, and path smoothness, yet many real-world applications require planners to also reason about the broader context and task in which they are deployed. For example, in human–robot collaboration (HRC), a robot must generate smooth collision-free paths while also accounting for human intentions, safety, or privacy. Such context-aware objectives can be represented by neural cost functions, which learn task-relevant representations of the environment and are naturally optimized for execution on a GPU. The incorporation of neural cost functions into traditional CPU-based implementations of PRM could enable context-aware planning, but the resulting CPU-GPU communication overhead would prohibit planning online. GPU-based implementations of PRM have been published, yet none leverage neural cost functions. To address this gap, we present \ourplanner, a GPU-accelerated PRM framework that incorporates neural cost functions to generate solutions optimized for a specific planning context. We demonstrate the real-time context-aware planning capability of \ourplanner in both simulated and real-world robotic experiments. We sustain planning frequencies of up to 75~Hz and achieve up to a 130$\times$ speedup over a baseline CPU implementation.
+ 
+% Incorporating such context-aware objectives into PRM is difficult because the corresponding cost functions are often computationally expensive to evaluate during roadmap construction. Many of these objectives can be expressed as neural cost functions, which learn task-relevant representations of the environment and are naturally optimized for GPU execution. Integrating neural functions into conventional CPU-based PRM implementations, however, introduces substantial CPU–GPU communication overhead. Prior work has investigated hardware-accelerated variants of PRM, yet no existing approach fully integrates neural costs within a GPU-native planner. 
+
+% The sampling-based motion planning algorithm Probabilistic Roadmap (PRM) offers efficient solutions for high-dimensional planning problems encountered by real-world robots. However, some applications require planning under user-defined cost functions, which are often represented by neural networks. Incorporating these complex cost functions significantly increases computational demands—particularly because traditional PRM implementations run on the CPU, while neural models are optimized for execution on the GPU. Although previous work has explored parallelizing components of PRM, no existing approach integrates neural cost functions into PRM within a fully parallelized framework. In this work, we present \ourplanner, a GPU-accelerated implementation of PRM that achieves parallelism across the entire algorithm while incorporating neural cost functions. We evaluate the effectiveness of \ourplanner in a variety of simulation and real-world robotic experiments, demonstrating significantly improved performance compared to baseline methods.
+\end{abstract}
+
+\input{text/introduction}
+\input{text/problem_statement}
+\input{text/related_work}
+\input{text/method}
+\input{text/experiment}
+\input{text/conclusion}
+% \input{text/acknowledgement}
+
+%\clearpage
+\printbibliography{}
+
+\end{document}
+

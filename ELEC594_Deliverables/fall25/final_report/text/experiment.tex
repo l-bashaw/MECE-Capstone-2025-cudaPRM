@@ -1,0 +1,88 @@
+\section{Experiments}
+
+We evaluate our GPU-accelerated planner using a perception-aware cost function as a representative example. 
+In this case, the auxiliary term $c_p(\pi)$ measures the robot’s ability to detect objects or humans along a path. 
+Such perception quality depends on factors like viewing angle and distance, which are difficult to model analytically. 
+Instead, we approximate the score with a neural network that can be efficiently parallelized on the GPU. 
+Formally, for each configuration $\bfq \in \cfree$ and object $o \in \calO$, we define
+\begin{equation}
+p(\bfq,o) \in \mathbb{R}_{\geq 0},
+\end{equation}
+as the predicted perception score, and set
+\begin{equation}
+c_p(\pi) = \int_0^1 \sum_{o \in \calO} w_o \, p(\pi(t),o)\,\mathrm{d}t.
+\end{equation}
+
+We demonstrate our planner in both simulation and real-robot experiments with the Hello Robot Stretch~2. Our implementation uses Isaac Sim~\cite{nvidia2022isaacsim} for simulation and visualization, and all experiments are run on an Intel i7-12700K CPU with an NVIDIA RTX 4090 GPU. For simulation, the camera is configured with a resolution of $640\times 480$, a field of view of $42.5^\circ$, and a clipping range of $[0.3,6]$ meters. We use $\mathcal{A}$* search on the CPU to find solutions in our PRM.
+
+The neural cost function $p(\bfq,o)$ in our experiments is modeled as a multilayer perceptron (MLP)~\cite{rumelhart1986learning}. The input features include the relative camera–object pose and an object label. This framework and neural cost function can be generalized to a wide range of applications; here, we present one implementation to illustrate our pipeline. For example, in human-aware or intention-aware motion planning, the neural cost function could instead be a network trained for human activity prediction and recognition~\cite{kumar2024human}. Moreover, thanks to the scalability of our approach, the architecture of the neural network is flexible and could vary in depth, width, or design depending on the target application. Furthermore, our framework can accommodate any GPU-based cost function, such as ray tracing~\cite{parker2013gpu}, signal processing~\cite{mccool2007signal}, or large matrix operations~\cite{ferreira2011bayesian}, rather than only neural networks. 
+
+For this perception task, \ourplanner executes roadmap building for Stretch's non-holonomic ${SE(2)}$ state space. Once the roadmap is built, we steer Stretch 2's camera to point at an object for every state in the roadmap. This ensures that the perception score assigned to each node by the neural cost function is valid. Maximizing the perception function costs across the roadmap ensures that the $c_p$ assigned to every path $\pi$ in $\Pi$ is optimized.
+
+% point the camera at the object of interest by projecting 
+
+
+% a decoupled set of two joints is used to project the camera against an object of interest. 
+
+% Once the roadmap, $\mathbf{G}$, is built, we must ensure that the robot’s camera is properly oriented to look at the object of interest for every node in $\mathbf{G}$. This ensures that the perception score assigned to each node by the neural cost function is optimized.  Maximizing the perception scores uniformly across $\mathbf{G}$ ensures that the $c_p$ assigned to every path $\pi$ in $\Pi$ is both accurate and unbiased.  In other words, since the perception scores are embedded in the heuristic used during graph search, their values must be consistent across $\mathbf{G}$; otherwise, the paths output by the planner would not optimally satisfy the neural cost function.
+
+Using the readily available PRM information on GPU memory, we include a parallelized forward kinematics (FK) function on GPU that accelerates the projection of nodes in the roadmap to satisfy the camera view on the object. We use the Pytorch-FK library ~\cite{Zhong_PyTorch_Kinematics_2024} to allow both GPU based FK and transfer of robot data in PyTorch tensors. This GPU-FK functionality integrates with our GPU roadmap construction and allows the planner to accommodate a wide range of additional robot constraints for future experiments as well.
+
+% The notion of an EE is arbitrary: it could be a gripper, camera, or surgical instrument, and may come with different constraints on its position or orientation. For example, it may be beneficial to orient a camera to look at an object, while a scalpel would need to stay perpendicular to a cut surface. It is important to note that this planning component is optional and only needs to be used if the user desires to constrain the EE. We discuss our specific use of the parallel FK functions in ~\ref{sec:expPFK}, where we describe our experimentation with perception-constrained planning scenarios.
+
+
+\subsection{Simulation Experiments}
+
+We first evaluate our planner in a simulated office environment with three different objects-of-interest (OoI): a cup, monitor, and human. We randomly sample 25 start and goal pairs from regions on opposite ends of the environment and perform 100 trials per pair per OoI. We compare our GPU-accelerated planner against a CPU equivalent planner based on~\cite{meng2025look}. This baseline implementation uses the same GPU based FK and inference on its generated PRM, but executes state sampling and roadmap building on CPU using OMPL’s PRM implementation~\cite{sucan2012open}. The baseline uses the same perception-aware cost function and search parameters, and a CPU-equivalent collision checking method. 
+
+We also evaluate the scalability of our planning by comparing planning times for PRMs with different numbers of nodes. We do so in the same office environment with the same start and goal pairs; Fig. \ref{fig:perf_scaling} presents the resulting timing statistics. As shown in Fig.~\ref{fig:perf_scaling}, the build and query time of the PRM planner increases consistently with the number of nodes in the roadmap. At small roadmap sizes (up to about $5{,}000$ nodes), the time grows from $10^{-4}$ to just under $10^{-2}$ seconds, reflecting the cost of adding connectivity to an initially sparse graph. In the intermediate range (around $10{,}000$ nodes), the time reaches $10^{-1}$ seconds, with a slower rate of increase as edge construction dominates. Beyond $10{,}000$ nodes, however, the cost rises more steeply, approaching $1$ second at $20{,}000$ nodes, indicating the quadratic growth of potential edges and the higher complexity of managing large graphs. Overall, the results highlight a clear trade-off between roadmap density, which improves connectivity and path quality, and build time, which scales from sub-linear at smaller sizes to near super-linear at larger scales.
+
+
+\begin{figure}[!ht]
+    \includegraphics[width=0.4875\textwidth]{image/dual_axis_performance_boxplot__.pdf}
+    \caption{
+        This figure shows the performance of our planner as the number of nodes in increased - the y-axis is shown in \textbf{logarithmic} scale. The statistics represent the combined roadmap construction and trajectory generation time; they were gathered for Hello Robot's Stretch 2 in our simulated office environment. The planner can sustain re-planning frequencies of \>10 hertz for roadmaps with as many as 5000 nodes.
+    }
+    \label{fig:perf_scaling}
+\end{figure}
+
+
+\begin{table}[t]
+\centering
+\resizebox{\columnwidth}{!}{
+\begin{tabular}{lccc|c}
+\toprule
+ & \multicolumn{3}{c}{Motion Planning} & \multicolumn{1}{c}{Perception} \\ 
+\cmidrule(lr){2-4} \cmidrule(lr){5-5} 
+ \multirow{2}{*}{Method} & Build Time & Plan. Time & Path Len. & Det. Rate \\
+ & (s) & (s) & (rad) & (\%) \\ 
+\midrule
+\rowcolor{gray!1} CPU-Baseline & 2.62 & 0.11 & 15.65 & 0.637 \\ 
+\rowcolor{gray!10} \ourplanner & \textbf{0.0166} & \textbf{0.0042} & \textbf{13.61} & \textbf{0.697} \\ 
+\bottomrule
+\end{tabular}}
+
+
+\caption{Planning results for Stretch on a simulation environment. The results are averaged over 100 different motion planning problems and a PRM with 1500 nodes. ``Build Time'' denotes the time to create the roadmap, ``Plan. Time'' the average planning time, ``Path Len.'' the average path length and ``Det. Rate'' the percentage of frames with the object of interest detected.}
+\label{tab:planning-results}
+\end{table}
+
+Table \ref{tab:planning-results} shows the planning and perception statistics for \ourplanner against the CPU baseline. Results for the perception comparison were obtained by benchmarking object detection using YOLOE~\cite{wang2025yoloe} prompted with a brief description of the objects of interest. The results highlight the significant speedup of over 130 times on PRM build and planning time as the most important improved metric. While build time is accelerated by PRM parallelization on node and edge validity checking, planning time is also improved by faster edge checks on start and goal connections to the roadmap. Path quality is preserved with similar average path lengths and performance on the perception task.
+
+In our experiments, we do not include direct comparisons with prior GPU-parallelized PRM or RRT methods because these planners were not designed to incorporate neural costs, making such comparisons unfair and uninformative. For instance, cpRRTC~\cite{hu2025cprrtc} uses a GPU-accelerated tree-based structure which is well suited for fast exploration; however, unlike a roadmap-based planner it is fundamentally difficult to optimize with respect to global cost functions. Similarly, prior works on GPU-accelerated PRM~\cite{blankenburg2020towards,pan2010g,pan2010efficient,pan2012gpu,amato1999probabilistic} focus exclusively on accelerating classical PRM operations. These systems lack the necessary mechanisms, such as parallel forward kinematics and cost evaluation pipelines, for integrating neural costs into the planning process. As a result, a direct comparison would primarily measure low-level GPU performance rather than addressing the central contribution of our work: a GPU-native planner that seamlessly incorporates neural cost functions for context-aware motion planning.
+
+
+\subsection{Real Robot Experiments}
+
+We further evaluate the effectiveness of our planner in a real-robot environment. The robot is placed in an indoor environment with a sofa, a human sitting on a black chair, and a white chair; both chairs and the human are free to move. The robot must move to the opposite side of the room while continuously monitoring the human's face and avoiding dynamic obstacles. The robot must prioritize paths that allow it to see the human's face, rather than the human in general, as long as they are valid. Therefore, it must replan whenever the human or other obstacles change either their position or orientation. We use the motion capture system Vicon Tracker~\cite{pfister2014comparative} to send the poses of both the objects and the human to the planner in real time. The planner can rebuild the roadmap and deliver a new trajectory to the robot at up to 75~Hz, but replanning is triggered only when the human or chairs undergo a translation or rotation that exceeds a predefined threshold.
+
+As illustrated in Fig.~\ref{fig:real_robot_dynamic}, the robot continuously adapts its path in response to changes in the human’s pose and in the environment. When the human initially faces right, the robot selects a trajectory along the right side (red path). As the human turns to face left, the planner dynamically updates the path to the opposite side (orange path). Later, when the human moves the white chair, the robot replans once again in real time to avoid the newly introduced obstacle (green path). This experiment highlights the ability of our planner to react swiftly to both human motions and environmental disturbance while maintaining perception-awareness.
+
+An additional experiment was designed to test the capability of the planner to react to aggressive changes in the environment. As shown in Fig.~\ref{fig:real_robot_thrown} the robot is tasked with visually tracking an object, with its pose live streamed from Vicon. The object is thrown from one side of a room to another; the humans are free to otherwise move the object. Within its physical capabilities, the robot is capable of recovering its view on the object soon after receiving updates on its position. This reinforces the previous experiment and shows the feasibility of deployment on highly dynamic environments.
+
+
+
+% ------- OLD FK DESCRIPTION -------
+% We implement a parallelized forward kinematics (FK) function that projects every node in $G$ onto a manifold that represents an end-effector (EE) constraint. This parallel-FK functionality allows the planner to accommodate a wide range of constrained problems; the EE could be a gripper, a camera, or a surgical instrument, and each type of EE may come with different constraints on its position or orientation. For example, it may be beneficial to orient a camera to look at an object, while a scalpel may need to stay perpendicular to a cut surface. 
+
+% We project the camera joint positions for all nodes via parallelized forward kinematics on GPU.  We represent the nodes as one tensor $\mathbf{T}$ of size $\mathbf{N} \cdot \mathbf{k}$, where $\mathbf{N}$ is the number of nodes in $\mathbf{G}$.  Given the camera-to-robot and robot-to-world transformation matrices, and the object of interest's pose in the world frame, we perform simple geometric calculations to project the camera joints.  To simplify the forward kinematics requisite for projection, all states are sampled with the camera parameters set to zero during roadmap construction.
