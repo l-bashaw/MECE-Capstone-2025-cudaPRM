@@ -1,6 +1,6 @@
-# cudaPRM: GPU-Accelerated Perception-Aware Probabilistic Roadmap Planner
+# GANC-PRM: **G**PU-****Accelerated PRM with **N**eural **C**osts
 
-A high-performance CUDA-based Probabilistic Roadmap (PRM) motion planner with integrated perception scoring for mobile robot navigation. This library enables real-time path planning that optimizes both motion efficiency and camera visibility of objects of interest.
+A high-performance CUDA-based Probabilistic Roadmap (PRM) motion planner with that generates paths optimized for traditional objectives (e.g., path length) and task specific contextual objectives (e.g., safety or perception-awareness). This library enables real-time path planning in under 30ms for PRMs of <1500 nodes. We acheive planning frequencies of 3 Hz for PRMs with up to 15000 nodes. Tested on an NVIDIA RTX 4090.
 
 ## Table of Contents
 
