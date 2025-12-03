@@ -18,20 +18,13 @@ A high-performance CUDA-based Probabilistic Roadmap (PRM) motion planner with th
 
 ## Overview
 
-cudaPRM (CUDA Parallel PRM) is a GPU-accelerated motion planning framework designed for perception-aware robot navigation. It constructs probabilistic roadmaps using massively parallel CUDA kernels and integrates a neural network-based perception scoring model to generate paths that:
-
-1. **Avoid collisions** with obstacles in 2D environments
-2. **Maximize visibility** of objects of interest through learned perception scores
-3. **Generate smooth trajectories** using Reeds-Shepp curves for non-holonomic robots
-
-The planner is specifically designed for the **Hello Robot Stretch** mobile manipulation platform but can be adapted for other robots with pan-tilt camera heads.
+GANC-PRM is a GPU-accelerated motion planning framework designed for context-aware robot navigation - it achieves contextual awareness with the use of neural cost functions (NCF) that learn implicit representations of the environment. The neural cost functions are used to score nodes and edges in the PRM; these scores are weighted and used during graph search to return solutions that are optimized for qualities beyond path length or smoothness. We ship this repo with a NCF used for perception objectives in an office environment; the code is configured for the **Hello Robot Stretch2** mobile manipulation platform but can be easily adapted for other robots.
 
 ## Features
-
-- **GPU-Accelerated PRM Construction**: Parallel node sampling, neighbor finding, and collision checking on CUDA
-- **Perception-Aware Planning**: Neural network model predicts camera perception quality scores
+- **GPU-Accelerated PRM Construction**: Parallel node sampling, neighbor finding, and collision checking in CUDA
+- **Context-Aware Planning**: Neural cost functions (implemeneted as PyTorch models) score a PRM after it is constructed
 - **Reeds-Shepp Local Planning**: Supports non-holonomic motion constraints for car-like robots
-- **Real-time Performance**: Sub-100ms planning times for replanning scenarios
+- **Real-time Performance**: Sub-100ms planning times for replanning scenarios and larger PRMs
 - **ROS2 Integration**: WebSocket bridge for real-time robot control via ROSBridge
 - **Isaac Sim Support**: Integration with NVIDIA Isaac Sim for simulation experiments
 - **Flexible Environment Loading**: YAML-based scene configuration with mesh support
@@ -42,8 +35,8 @@ The planner is specifically designed for the **Hello Robot Stretch** mobile mani
 ┌──────────────────────────────────────────────────────────────────┐
 │                         Python API                               │
 │  ┌─────────────┐  ┌──────────────┐  ┌────────────────────────┐   │
-│  │   PSPRM     │  │   Solution   │  │   EnvironmentLoader    │   │
-│  │  (prm.py)   │  │  (prm.py)    │  │   (EnvLoader.py)       │   │
+│  │  GANC-PRM   │  │   Solution   │  │   EnvironmentLoader    │   │
+│  │  (prm.py)   │  │   (prm.py)   │  │     (EnvLoader.py)     │   │
 │  └──────┬──────┘  └──────┬───────┘  └────────────────────────┘   │
 ├─────────┼────────────────┼───────────────────────────────────────┤
 │         │                │              Neural Network           │
@@ -78,13 +71,15 @@ The planner is specifically designed for the **Hello Robot Stretch** mobile mani
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/l-bashaw/cudaPRM.git
-   cd cudaPRM
+   git clone <REPO_URL>
+   cd <PARENT_DIR>
    ```
 
 2. **Install Python dependencies:**
    ```bash
-   pip install -r requirements.txt
+   uv init
+   uv venv --python 3.10
+   uv pip install -r requirements.txt
    ```
 
 3. **Build the CUDA extension:**
@@ -169,7 +164,7 @@ sol.print_path(prm.graph)
 
 ## API Reference
 
-### PSPRM Class
+### GANC-PRM Class
 
 The main planning class that builds and queries the probabilistic roadmap.
 
@@ -230,7 +225,7 @@ class ModelLoader:
 ## Project Structure
 
 ```
-cudaPRM/
+GANC_PRM/
 ├── example_usage.py              # Basic usage example
 ├── requirements.txt              # Python dependencies
 ├── README.md                     # This file
@@ -250,7 +245,7 @@ cudaPRM/
     │
     ├── src/                      # CUDA source code
     │   ├── bindings/
-    │   │   └── py_bind.cpp       # PyBind11 Python bindings
+    │   │   └── py_bind.cpp       # PyBind11 Python bindings for CUDA PRM construction module
     │   │
     │   ├── planning/
     │   │   ├── pprm.cu           # Roadmap allocation/management
@@ -264,16 +259,16 @@ cudaPRM/
     │   │   └── reedsshepp.cu     # Reeds-Shepp path computation
     │   │
     │   └── params/
-    │       └── hyperparameters.cuh  # PRM hyperparameters
+    │       └── hyperparameters.cuh  # PRM hyperparameters - the CUDA module must be rebuilt if you edit these for changes to take effect.
     │
-    ├── ros_bridge/               # ROS2 integration
-    │   ├── pose_receiver.py      # Subscribe to pose topics
+    ├── ros_bridge/               # ROS2 integration (optional)
+    │   ├── pose_receiver.py      # Subscribe to pose topics from a motion capture system
     │   └── trajectory_publisher.py  # Publish trajectories
     │
     ├── experiments/              # Experiment scripts
     │   ├── sim/
     │   │   ├── comparison_exp.py # Benchmarking experiments
-    │   │   ├── isaac_sim_static.py
+    │   │   ├── isaac_sim_static.py # IsaacSim experiments, static and dynamic environments
     │   │   └── isaac_sim_dynamic.py
     │   └── real/
     │       └── replanning_real_robot.py
@@ -296,7 +291,7 @@ cudaPRM/
 
 ### Hyperparameters (hyperparameters.cuh)
 
-Key PRM parameters that can be tuned:
+Key PRM parameters that can be tuned - the CUDA module must be rebuilt if you edit these for changes to take effect:
 
 ```cpp
 constexpr unsigned int K = 10;              // Number of nearest neighbors
@@ -333,69 +328,27 @@ label_map = {
 }
 ```
 
-## Experiments
-
-### Simulation Experiments
-
-Run benchmark comparisons in Isaac Sim:
-
-```bash
-cd planning/experiments/sim
-python comparison_exp.py
-```
-
-### Real Robot Deployment
-
-For real robot experiments with ROS2:
-
-1. Start ROSBridge server:
-   ```bash
-   ros2 launch rosbridge_server rosbridge_websocket_launch.xml
-   ```
-
-2. Run replanning controller:
-   ```bash
-   cd planning/experiments/real
-   python replanning_real_robot.py
-   ```
-
-## ROS Integration
-
-The planner communicates with ROS2 via WebSocket using ROSBridge:
-
-- **Pose Receiver** (`ros_bridge/pose_receiver.py`): Subscribes to `/poses` and `/pose_names` topics for dynamic obstacle tracking
-- **Trajectory Publisher** (`ros_bridge/trajectory_publisher.py`): Publishes planned trajectories to `/trajectory` as `Float32MultiArray`
-
 ## Performance
 
 Typical performance on NVIDIA RTX 3090:
 
-| Phase | Time |
-|-------|------|
-| PRM Construction | ~15-30 ms |
-| Path Search + Simplification | ~5-10 ms |
-| Trajectory Generation | ~2-5 ms |
-| **Total** | **~25-50 ms** |
+|            Phase             |     Time      |
+|------------------------------|---------------|
+| PRM Construction             | ~15-30 ms     |
+| Path Search + Simplification | ~5-10 ms      |
+| Trajectory Generation        | ~2-5 ms       |
+| **Total**                    | **~25-50 ms** |
 
 ## Citation
 
 If you use this work in your research, please cite:
 
-```bibtex
-@misc{cudaprm2025,
-  title={cudaPRM: GPU-Accelerated Perception-Aware Probabilistic Roadmap Planning},
-  author={Bashaw, L.},
-  year={2025},
-  howpublished={\url{https://github.com/l-bashaw/cudaPRM}}
-}
-```
+...CITATION TO BE ADDED...
 
 ## License
 
 See [LICENSE](LICENSE) for details.
 
 ## Acknowledgments
-
-- Hello Robot for the Stretch platform
-- NVIDIA for CUDA and Isaac Sim
-- Rice University ELEC594 Capstone Project
+- All members of the Kavraki Lab at Rice University
+- Rice University Advisors: Dr. Lydia Kavraki, Dr. Jose Moreto and Dr. Joe Young
