@@ -1,4 +1,4 @@
-# GANC-PRM: **G**PU-****Accelerated PRM with **N**eural **C**osts
+# GANC-PRM: GPU-Accelerated PRM with Neural Costs
 
 A high-performance CUDA-based Probabilistic Roadmap (PRM) motion planner with that generates paths optimized for traditional objectives (e.g., path length) and task specific contextual objectives (e.g., safety or perception-awareness). This library enables real-time path planning in under 30ms for PRMs of <1500 nodes. We acheive planning frequencies of 3 Hz for PRMs with up to 15000 nodes. Tested on an NVIDIA RTX 4090.
 
